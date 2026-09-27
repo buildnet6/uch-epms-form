@@ -1,0 +1,578 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Submit your details once and get your UCH EPMS forms completed.">
+<title>EPMS Details Form</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&display=swap">
+<style>
+:root{
+  --bg:#F3F5F1; --surface:#FFFFFF; --surface-2:#EEF2EA; --ink:#1B2419; --ink-2:#4A5646; --muted:#6B7667;
+  --line:#D5DCCF; --green:#3E6B2B; --green-ink:#FFFFFF; --green-soft:#E3ECDC; --amber:#F2B705; --amber-soft:#FFF4CC;
+  --amber-ink:#3A2C00; --danger:#B3261E; --danger-soft:#FBE9E7; --focus:#1F5FBF; --ok:#2E7D32;
+  --radius:10px; --shadow:0 1px 2px rgba(27,36,25,.06),0 4px 16px rgba(27,36,25,.05);
+  --serif:"Source Serif 4",Georgia,"Times New Roman",serif; --sans:"Public Sans",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#131811; --surface:#1B2219; --surface-2:#222B20; --ink:#E7EDE3; --ink-2:#BCC7B6; --muted:#98A393;
+    --line:#35412F; --green:#7DB35F; --green-ink:#10180C; --green-soft:#26361E; --amber:#F2C230; --amber-soft:#3A3113;
+    --amber-ink:#FFE9A3; --danger:#F2867D; --danger-soft:#3A1D1A; --focus:#8AB4FF; --ok:#8BD08F;
+    --shadow:0 1px 2px rgba(0,0,0,.3); color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#131811; --surface:#1B2219; --surface-2:#222B20; --ink:#E7EDE3; --ink-2:#BCC7B6; --muted:#98A393;
+  --line:#35412F; --green:#7DB35F; --green-ink:#10180C; --green-soft:#26361E; --amber:#F2C230; --amber-soft:#3A3113;
+  --amber-ink:#FFE9A3; --danger:#F2867D; --danger-soft:#3A1D1A; --focus:#8AB4FF; --ok:#8BD08F;
+  --shadow:0 1px 2px rgba(0,0,0,.3); color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.5;padding-inline:16px;padding-block:0 48px}
+.wrap{max-width:760px;margin:0 auto}
+header.top{padding-block:28px 12px;display:grid;gap:6px}
+.eyebrow{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--green);font-weight:700}
+h1{font-family:var(--serif);font-size:clamp(26px,5vw,34px);line-height:1.15;margin:0;text-wrap:balance}
+h2{font-family:var(--serif);font-size:22px;margin:0;text-wrap:balance}
+h3{font-size:15px;margin:0;font-weight:700}
+p{margin:0}
+.lede{color:var(--ink-2);max-width:62ch}
+.need{background:var(--amber-soft);color:var(--amber-ink);border-radius:var(--radius);padding:12px 14px;font-size:14.5px;display:grid;gap:4px}
+.need ul{margin:0;padding-left:18px}
+nav.steps{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-block:10px;margin-block:8px 4px;border-bottom:1px solid var(--line)}
+.steps ol{list-style:none;margin:0;padding:0;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
+.steps ol::-webkit-scrollbar{display:none}
+.steps button{all:unset;cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap;font-size:13.5px;font-weight:600;color:var(--muted);padding:7px 11px;border-radius:999px;border:1px solid var(--line);background:var(--surface)}
+.steps button .n{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--surface-2);font-size:12px;font-variant-numeric:tabular-nums}
+.steps button[aria-current="step"]{color:var(--green-ink);background:var(--green);border-color:var(--green)}
+.steps button[aria-current="step"] .n{background:rgba(255,255,255,.25);color:inherit}
+.steps button.done .n{background:var(--green-soft);color:var(--green)}
+.steps button:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+section.step{background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:22px 18px;margin-top:14px;display:grid;gap:18px}
+@media (min-width:640px){section.step{padding:28px}}
+.step-head{display:grid;gap:6px}
+.hint{color:var(--muted);font-size:14px}
+.grid{display:grid;gap:14px;grid-template-columns:1fr}
+@media (min-width:560px){.grid.two{grid-template-columns:1fr 1fr}.grid.three{grid-template-columns:1fr 1fr 1fr}}
+.field{display:grid;gap:6px;min-width:0}
+label,.label{font-weight:600;font-size:14.5px}
+.req{color:var(--danger);font-weight:700}
+.opt{color:var(--muted);font-weight:400;font-size:13px}
+input[type=text],input[type=email],input[type=tel],input[type=search],select,textarea{
+  width:100%;font:inherit;color:var(--ink);background:var(--surface);border:1.5px solid var(--line);border-radius:8px;padding:11px 12px;min-height:46px}
+textarea{min-height:76px;resize:vertical}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--focus);box-shadow:0 0 0 3px color-mix(in srgb,var(--focus) 22%,transparent)}
+.invalid{border-color:var(--danger)!important;background:var(--danger-soft)!important}
+.err{color:var(--danger);font-size:13.5px}
+.actions{display:flex;gap:10px;justify-content:space-between;flex-wrap:wrap;padding-top:4px}
+.btn{font:inherit;font-weight:700;border-radius:9px;padding:12px 18px;min-height:46px;cursor:pointer;border:1.5px solid var(--line);background:var(--surface);color:var(--ink)}
+.btn.primary{background:var(--green);border-color:var(--green);color:var(--green-ink)}
+.btn.amber{background:var(--amber);border-color:var(--amber);color:#2A2000}
+.btn.small{padding:7px 12px;min-height:36px;font-size:14px;font-weight:600}
+.btn.ghost{background:transparent}
+.btn:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
+.copy-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+/* tasks */
+.kra-tools{display:grid;gap:10px}
+.picked{display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:inline-flex;align-items:center;gap:6px;background:var(--green-soft);color:var(--ink);border-radius:999px;padding:6px 8px 6px 12px;font-size:13.5px;max-width:100%}
+.chip b{font-weight:700;color:var(--green)}
+.chip span.t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:46ch}
+.chip button{all:unset;cursor:pointer;width:22px;height:22px;display:grid;place-items:center;border-radius:50%;font-weight:700}
+.chip button:hover{background:rgba(0,0,0,.08)}
+.kra-list{max-height:430px;overflow:auto;border:1px solid var(--line);border-radius:10px}
+.kra-group{border-bottom:1px solid var(--line)}
+.kra-group:last-child{border-bottom:0}
+.kra-group h4{position:sticky;top:0;margin:0;background:var(--surface-2);font-size:12.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);padding:7px 12px}
+.kra{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;cursor:pointer;border-top:1px solid color-mix(in srgb,var(--line) 55%,transparent)}
+.kra:first-of-type{border-top:0}
+.kra input{width:20px;height:20px;margin-top:2px;accent-color:var(--green);flex:none}
+.kra:hover{background:var(--surface-2)}
+.kra.sel{background:var(--green-soft)}
+.add-own{display:flex;gap:8px;flex-wrap:wrap}
+.add-own input{flex:1 1 260px}
+.count{font-size:13.5px;color:var(--ink-2);font-variant-numeric:tabular-nums}
+/* months */
+.months{display:grid;gap:12px}
+details.month{border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+details.month[open]{border-color:color-mix(in srgb,var(--green) 45%,var(--line))}
+details.month summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:12px;padding:13px 14px;font-weight:700}
+details.month summary::-webkit-details-marker{display:none}
+.mstate{margin-left:auto;font-size:12.5px;font-weight:600;padding:3px 9px;border-radius:999px;background:var(--surface-2);color:var(--muted)}
+.mstate.ok{background:var(--green-soft);color:var(--green)}
+.mstate.part{background:var(--amber-soft);color:var(--amber-ink)}
+.chev{transition:transform .15s}
+details[open] .chev{transform:rotate(90deg)}
+.mbody{display:grid;gap:16px;padding:4px 14px 16px}
+.row{display:grid;gap:10px;padding:14px;border-radius:10px;background:var(--surface-2)}
+.row-title{font-size:12.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);font-weight:700}
+.row .grid{grid-template-columns:1fr}
+@media (min-width:560px){.row .sc{grid-template-columns:160px 1fr}}
+.qchips{display:flex;flex-wrap:wrap;gap:6px}
+.qchips button{font:inherit;font-size:13px;border:1px dashed var(--line);background:var(--surface);color:var(--ink-2);border-radius:999px;padding:5px 10px;cursor:pointer}
+.qchips button:hover{border-style:solid;color:var(--ink)}
+/* review */
+.review{display:grid;gap:12px}
+.warn{background:var(--amber-soft);color:var(--amber-ink);border-radius:10px;padding:12px 14px;font-size:14.5px}
+.warn ul{margin:6px 0 0;padding-left:18px}
+.good{background:var(--green-soft);border-radius:10px;padding:12px 14px;font-size:14.5px}
+pre.out{white-space:pre-wrap;word-break:break-word;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:14px;font-size:13px;line-height:1.5;max-height:420px;overflow:auto;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.send{display:grid;gap:10px;border:2px solid var(--green);border-radius:12px;padding:16px}
+.send ol{margin:0;padding-left:20px;display:grid;gap:4px}
+.status{font-size:14px;font-weight:600;min-height:1.5em}
+.status.ok{color:var(--ok)} .status.bad{color:var(--danger)}
+.confirm{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:14px}
+.consent{display:flex;gap:10px;align-items:flex-start;font-size:14.5px;font-weight:500}
+.consent input{width:20px;height:20px;margin-top:2px;accent-color:var(--green);flex:none}
+.send.done{border-color:var(--ok);background:var(--green-soft)}
+.banner{background:var(--green-soft);border-radius:10px;padding:10px 14px;font-size:14.5px;font-weight:600}
+.banner.warn{background:var(--amber-soft);color:var(--amber-ink)}
+.btn.busy{opacity:.7;cursor:progress}
+footer.note{color:var(--muted);font-size:13px;margin-top:18px;text-align:center}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+<style>body{margin:0}</style>
+</head>
+<body>
+
+
+<div class="wrap">
+  <header class="top">
+    <div class="eyebrow" id="top_eyebrow">UCH Ibadan · Clinical Nursing · EPMS 2025</div>
+    <div class="banner" id="edit_banner" hidden></div>
+    <h1>Your EPMS details, in one short form</h1>
+    <p class="lede">Answer these questions once. Your details will be used to fill your full EPMS workbook for you: the performance contract, the 12 monthly reviews and the 4 quarterly appraisals.</p>
+    <div class="need">
+      <strong>Have these ready (about 10 minutes):</strong>
+      <ul>
+        <li>Your IPPIS number, and those of your supervisor and counter-signing officer</li>
+        <li>The tasks (KRAs) you worked on this year</li>
+        <li>Your score for each month, if you have it</li>
+      </ul>
+      <span>Service fee: <b>&#8358;12,400</b>, paid at the end by card, bank transfer or USSD through Flutterwave.</span>
+    </div>
+  </header>
+
+  <nav class="steps" aria-label="Form sections"><ol id="stepnav"></ol></nav>
+
+  <form id="f" novalidate autocomplete="on">
+
+  <!-- 1 -->
+  <section class="step" data-step="0" aria-labelledby="s1h">
+    <div class="step-head"><h2 id="s1h">About you</h2><p class="hint">Exactly as it should appear on your EPMS form.</p></div>
+    <div class="grid three">
+      <div class="field"><label for="emp_surname">Surname <span class="req">*</span></label><input id="emp_surname" type="text" required autocomplete="family-name"></div>
+      <div class="field"><label for="emp_first">First name <span class="req">*</span></label><input id="emp_first" type="text" required autocomplete="given-name"></div>
+      <div class="field"><label for="emp_other">Other name <span class="opt">(optional)</span></label><input id="emp_other" type="text" autocomplete="additional-name"></div>
+    </div>
+    <div class="grid two">
+      <div class="field"><label for="emp_designation">Designation (rank) <span class="req">*</span></label><input id="emp_designation" type="text" list="ranks" required placeholder="e.g. Senior Nursing Officer"></div>
+      <div class="field"><label for="emp_ippis">IPPIS No. <span class="req">*</span></label><input id="emp_ippis" type="text" inputmode="numeric" required placeholder="e.g. 197920"></div>
+      <div class="field"><label for="emp_email">Email <span class="req">*</span></label><input id="emp_email" type="email" required autocomplete="email"></div>
+      <div class="field"><label for="emp_phone">Phone number <span class="req">*</span></label><input id="emp_phone" type="tel" required autocomplete="tel" placeholder="e.g. 08012345678"></div>
+      <div class="field"><label for="emp_department">Department <span class="req">*</span></label><input id="emp_department" type="text" required value="Clinical Nursing"></div>
+      <div class="field"><label for="emp_unit">Ward / Unit / Clinic <span class="req">*</span></label><input id="emp_unit" type="text" required placeholder="e.g. Eye Clinic, Labour Ward"></div>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section class="step" data-step="1" aria-labelledby="s2h" hidden>
+    <div class="step-head"><h2 id="s2h">Your supervisor (appraiser)</h2><p class="hint">The officer who appraises you directly, usually your Assistant Director of Nursing.</p></div>
+    <div class="grid three">
+      <div class="field"><label for="sup_surname">Surname <span class="req">*</span></label><input id="sup_surname" type="text" required></div>
+      <div class="field"><label for="sup_first">First name <span class="req">*</span></label><input id="sup_first" type="text" required></div>
+      <div class="field"><label for="sup_other">Other name <span class="opt">(optional)</span></label><input id="sup_other" type="text"></div>
+    </div>
+    <div class="grid two">
+      <div class="field"><label for="sup_designation">Designation (rank) <span class="req">*</span></label><input id="sup_designation" type="text" list="ranks" required placeholder="e.g. Assistant Director of Nursing"></div>
+      <div class="field"><label for="sup_ippis">IPPIS No. <span class="opt">(if you know it)</span></label><input id="sup_ippis" type="text" inputmode="numeric"></div>
+      <div class="field"><label for="sup_email">Email <span class="opt">(if you know it)</span></label><input id="sup_email" type="email"></div>
+      <div class="field"><label for="sup_phone">Phone number <span class="opt">(if you know it)</span></label><input id="sup_phone" type="tel"></div>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section class="step" data-step="2" aria-labelledby="s3h" hidden>
+    <div class="step-head"><h2 id="s3h">Counter-signing officer</h2><p class="hint">The senior officer who counter-signs your appraisal, usually your Deputy Director of Nursing.</p></div>
+    <div class="grid three">
+      <div class="field"><label for="cso_surname">Surname <span class="req">*</span></label><input id="cso_surname" type="text" required></div>
+      <div class="field"><label for="cso_first">First name <span class="req">*</span></label><input id="cso_first" type="text" required></div>
+      <div class="field"><label for="cso_other">Other name <span class="opt">(optional)</span></label><input id="cso_other" type="text"></div>
+    </div>
+    <div class="grid two">
+      <div class="field"><label for="cso_designation">Designation (rank) <span class="req">*</span></label><input id="cso_designation" type="text" list="ranks" required placeholder="e.g. Deputy Director of Nursing"></div>
+      <div class="field"><label for="cso_ippis">IPPIS No. <span class="opt">(if you know it)</span></label><input id="cso_ippis" type="text" inputmode="numeric"></div>
+      <div class="field"><label for="cso_email">Email <span class="opt">(if you know it)</span></label><input id="cso_email" type="email"></div>
+      <div class="field"><label for="cso_phone">Phone number <span class="opt">(if you know it)</span></label><input id="cso_phone" type="tel"></div>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section class="step" data-step="3" aria-labelledby="s4h" hidden>
+    <div class="step-head">
+      <h2 id="s4h">Your tasks (KRAs) for the year</h2>
+      <p class="hint">Tick the Key Result Areas from the hospital's performance contract that you worked on. Most nurses pick 2 to 6. Search by a word (e.g. "eye", "theatre", "documentation") or by your unit's code. If yours is not listed, add it at the bottom.</p>
+    </div>
+    <div class="kra-tools">
+      <div class="field"><label for="kra_search">Search the task list</label><input id="kra_search" type="search" placeholder="Type a word or a code such as OPHTHAL001"></div>
+      <div class="count" id="kra_count" aria-live="polite"></div>
+      <div class="picked" id="kra_picked"></div>
+      <div class="kra-list" id="kra_list" role="group" aria-label="Tasks from the performance contract"></div>
+      <div class="field">
+        <label for="kra_own">Add a task that is not on the list <span class="opt">(optional)</span></label>
+        <div class="add-own"><input id="kra_own" type="text" placeholder="Describe the task in one sentence"><button type="button" class="btn small" id="kra_own_add">Add task</button></div>
+      </div>
+      <div class="err" id="kra_err" hidden>Pick at least one task before you continue.</div>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section class="step" data-step="4" aria-labelledby="s5h" hidden>
+    <div class="step-head">
+      <h2 id="s5h">Monthly results</h2>
+      <p class="hint">For each month, choose the two tasks you want reported and give your result. A result is a percentage (for example <b>85</b>) or a count (for example <b>12</b> outreach programmes), whichever your task is measured in. Leave a month blank if you do not have its figures yet.</p>
+    </div>
+    <div class="copy-row"><button type="button" class="btn small" id="fill_same">Use the same two tasks for every empty month</button></div>
+    <div class="months" id="months"></div>
+  </section>
+
+  <!-- 6 -->
+  <section class="step" data-step="5" aria-labelledby="s6h" hidden>
+    <div class="step-head"><h2 id="s6h">A few words about your year</h2><p class="hint">All optional. Short notes are fine; they help fill the comment boxes on your reviews.</p></div>
+    <div class="grid">
+      <div class="field"><label for="x_outstanding">Outstanding performance or achievements this year</label><textarea id="x_outstanding" placeholder="e.g. Led 12 community eye screening outreaches"></textarea></div>
+      <div class="field"><label for="x_improve">Areas that need improvement</label><textarea id="x_improve" placeholder="e.g. Recruitment of extra personnel"></textarea></div>
+      <div class="field"><label for="x_training">Training you need</label><textarea id="x_training" placeholder="e.g. Specialist ophthalmic nursing training"></textarea></div>
+      <div class="field"><label for="x_goals">Your goals for next year</label><textarea id="x_goals"></textarea></div>
+      <div class="field"><label for="x_other">Anything else we should know</label><textarea id="x_other"></textarea></div>
+    </div>
+  </section>
+
+  <!-- 7 -->
+  <section class="step" data-step="6" aria-labelledby="s7h" hidden>
+    <div class="step-head"><h2 id="s7h">Check, save and pay</h2><p class="hint">Look over your answers, then submit them.</p></div>
+    <div id="checks"></div>
+    <div class="send" id="pay_box">
+      <h3 id="pay_title">Submit your details</h3>
+      <p id="pay_text">Service fee: <b>&#8358;12,400</b>. Pay securely by card, bank transfer or USSD through Flutterwave. Your answers are saved before payment starts, so nothing is lost if payment is interrupted.</p>
+      <label class="consent" for="consent"><input type="checkbox" id="consent"> <span>I confirm these details are correct, and I agree that they will be stored and used only to complete my EPMS forms.</span></label>
+      <div class="copy-row"><button type="button" class="btn primary" id="submit_btn">Save and pay &#8358;12,400</button></div>
+      <div class="status" id="send_status" role="status" aria-live="polite"></div>
+    </div>
+    <div class="send done" id="done_box" hidden>
+      <h3 id="done_title">Payment received. You're all set.</h3>
+      <p id="done_text">Your EPMS forms will be filled from these details. If you need to correct anything later, open your private edit link, make the change and tap <b>Save my changes</b>.</p>
+      <div class="field"><label for="edit_link">Your private edit link</label>
+        <div class="add-own"><input id="edit_link" type="text" readonly><button type="button" class="btn small" id="copy_link">Copy link</button></div></div>
+      <p class="hint">Keep this link to yourself: anyone who has it can change your answers. Send it to yourself on WhatsApp so you don't lose it.</p>
+      <div class="status" id="link_status" role="status" aria-live="polite"></div>
+    </div>
+    <div class="review">
+      <h3>Your answers</h3>
+      <pre class="out" id="out" tabindex="0"></pre>
+    </div>
+    <div class="confirm" id="reset_area">
+      <button type="button" class="btn small ghost" id="reset_btn">Clear the form on this device</button>
+      <span id="reset_confirm" hidden>Clear everything on this device? Anything already submitted stays saved. <button type="button" class="btn small" id="reset_yes">Yes, clear it</button> <button type="button" class="btn small ghost" id="reset_no">Keep my answers</button></span>
+    </div>
+  </section>
+
+  <div class="actions" id="nav_actions">
+    <button type="button" class="btn ghost" id="back_btn">Back</button>
+    <button type="button" class="btn primary" id="next_btn">Next</button>
+  </div>
+  </form>
+
+  <datalist id="ranks">
+    <option value="Nursing Officer II"><option value="Nursing Officer I"><option value="Senior Nursing Officer">
+    <option value="Principal Nursing Officer"><option value="Assistant Chief Nursing Officer"><option value="Chief Nursing Officer">
+    <option value="Assistant Director of Nursing"><option value="Deputy Director of Nursing"><option value="Director of Nursing">
+  </datalist>
+
+  <footer class="note">Your details are stored securely and used only to complete your EPMS forms. Payments are processed by Flutterwave; card details never touch this site.</footer>
+</div>
+
+<script>
+(function(){
+const YEAR = "2025";
+const KRAS = [["1","Giving health information to mothers on appointments at ANC & PNC"],["1","Safe Delivery of babies. Prevention of infection"],["2","Cascade of PMS process"],["2","Compliance with ECM process"],["C3","Through the usage of the staggered appointment system in the clinics"],["C1","Provide, continuous Training for Staff,"],["C6","Coordination of the promotion exercise"],["C4","Capacity building attendance"],["BME001","Daily Cleaning of work environment and Weekly Disinfection of work tables"],["CTAGC001","To ensure proper service delivery by members of staff of the geriatric centre"],["CAAPD001","Task shifting to allied staff for initial assessments/ psychoeducation"],["CNOO1","Compliance with hand hygiene and tidying up of patients' bedside and environment"],["CNOO1","Disinfection of equipment and instrument, ensure optimal sterilization of surgical instrument in all theatres Biannual wash-down of wards and theatres"],["CNOO1","Prompt response to patients need through daily clinical nursing auditing, annual study block program, improved documentation and collaboration with other health care professionals"],["CMD001","conduct and monitoring of committee meetings and ensuring approved resolution"],["CLIPSY001","Conduct regular individual and psychological sessions based on patients needs"],["COMED001","Establish and maintain an outbreak alert and response system; Initiate investigation of 100% of reported outbreaks;"],["PAED001","Give health talks at Rallies special days for childhood conditions in the hospital, TV stations, Radio station, rallies and Social Media"],["PAED001","Run regular out-patient clinic, ensure emergengy ward service, ensure in-patient services and Provide consult for Paediatric patient when requested by other unit"],["PAED001","Send consult to paliative care department for all newly children diagnosed with cancer and ensure that all patient with severe pain have access to morphine"],["SURG001","Optimize Operating Theatre Scheduling to improve theatre utilization and reduce idle time"],["SURG001","Introduce Preventive Maintenance for Surgical Equipment to reduce equipment downtime"],["SURG001","Strengthen Clinical Documentation for better continuity of care and data quality"],["ED001","1) Monthly audit of critically ill patient encounters"],["ED001","2) ED admission and transfer registers"],["ED001","3) Bed management reports"],["ENT/ORL001","4. To draw up strategies in improving ENT, Head and Neck services"],["ENT/ORL001","5. To draw up strategies in ensuring public enlightenment and outreach of at least one ENT disease annually"],["ENV001","Routine Disinfection, Disinfestation, Deratization, Decontamination and Prevention of Stagnant water"],["DFM001","To schedule appointments for more patients to see family physicians at special interest clinics"],["DFM001","To reduce the wait time (time of arrival to doctor's consultation) of patients to not more than 30minutes"],["GAD001","Strengthen reporting system across units"],["HIM001","Engagement of trained health information professsionals"],["HPC001","To implement evidence based protocols for pain,nausea, dyspnoea and other symptoms ( WHO analgesic ladder, opioid titration charts)"],["HPC001","5) To conduct regular wards rounds with physicians, nurses, medical social workers, clinical psychologist, pharmacists and chaplains"],["HPC001","To develop a dashboard tracking symptom control, patient satisfaction, advance care planning documentation and hospital readmission"],["HSD001","1. To issue letters of authrization to the patient and prepare their bills and oversight on Emergency Medical Services, admission/discharge processes of the patients"],["HR001","Implement transparent recruitment and personnel administration processes in line with Public Service Rules and approved HR policies"],["HR001","Organize induction programmes, circulate orientation schedules and provide institutional policy and ethics training"],["ITD001","Creation and maintenance of Staff profile for Internet, Institutional emails, ID card and payslips"],["PRO001","QUICK RESPONSE TO PHONE CALLS"],["MED001","Implement structured admission-to-discharge care protocols Incorporate discharge planning in admission rounds"],["MED001","Develop and roll out condition-specific management SOP s. Severity score warning system"],["MLS001","To provide adequate signages directing patients to laboratories"],["MSSD001","Develop Standard Operating Procedures (SOPs) and clinical guidelines"],["MSSD001","Conduct patient education sessions"],["NM001","Streamlined appointment and scheduling system; multidisciplinary approach to patient management with referring departments"],["NURSED001","Strengthen partnerships with accredited clinical practice sites to ensure adequate student clinical exposure. Ensure all students have access to required clinical placement as at when due"],["O & G 001","Prompt decision making in delivery options for our antenatal patients"],["O & G 001","Surgical Procedures performed by the most senior Consultants and Resident Doctors on duty"],["OPHTHAL001","Clinic workflow optimization, appointment scheduling improvements, theatre efficiency monitoring, surgical waiting lists monitoring and management, referral pathways strengthening (through outreach programmes) and quarterly Clinical Governance Meetings"],["OPHTHAL001","Community eye screening and outreach programmes"],["OPHTHAL001","Strengthen administrative coordination through standardised workflows and digital record management; conduct periodic reviews of administrative processes"],["OMS001","Develop and Publish a Triage SOP: Draft and implement a Standard Operating Procedure (SOP) for the pre-consultation patient-sorting workflow, leveraging the Senior Registrars' JD mandate for \"general pre-Consultant organization of the clinic.\""],["OMS001","Institute Monthly Trauma Audit Meetings: Integrate a specific \"Trauma Timeline Review\" into the monthly departmental meetings to audit case notes, ensuring 100% of interventions are documented and completed within the 24-hour window"],["OMS001","Design the OMS Pre-Operative Clearance Form: Create a standardized physical/digital checklist that mandates sign-offs for imaging (CT/Radiographs), blood cross-matching, and patient counseling (as per Senior Registrars' JD)"],["OMS001","Distribute the OMS Clinical SOP Manual: Compile and issue a pocket-sized or digital manual detailing the standard operating procedures for all minor oral surgeries and extractions to all resident doctors"],["OMS001","Develop the OMS IPC Audit Checklist"],["ORTHO001","Managing patients with musculoskeletal disease/disorders and trauma presented in the Hospital"],["ORTHO001","Supporting administrative processes in the Department"],["PERI001","Strengthen clinical teaching through structured clinical rotations, weekly operating room teaching, skills demonstrations, and periodic OSCE assessments"],["PHYSIO001","Ensure that physiotherapy services are accessible for 24hours daily 2.Ensure that the department is clean and in good order to receive patients 3. Ensure that equipment are functional and in good condition for evidence-based patient care"],["PHYSIO001","Daily health talk at outpatient clinics and antenatal clinic"],["PS001","Help to schedule multiple specialists appointment within a day for patient's conducive"],["PS001","Remind specialists and patient's of appointment"],["PS001","Ensure that all staff are abreast with the S. O. P of the Department"],["PSY001","Regular training of staff on quality care delivery"],["PSY001","To inform media houses, religious bodies and schools about planned mental health awareness"],["PHN001","Give reliable health information to all clients that attend the outpatient clinic in the hospital"],["PHN001","Document attendance"],["RAD001","Documentation of all images repeats adverse reaction and report errors"],["SOM001","Strengthen clinical teaching through structured clinical rotations, weekly bedside teaching, skills demonstrations, and periodic OSCE assessments"],["SON001","Conduct routine clinical supervision and placement compliance checks"],["SOHN001","Adequate monitoring and supervision of students on clinical posting"],["SDU001","Safe and conducive care for babies of staff and non-staff"],["SDU001","Establish a daily structured Patient Helper/Customer Assistance Desk"],["SMED001","Regular Health talks, Sending bulk SMS to all Staff on relevant Health issues,"],["TQM001","Statistical reports of various quality improvement projects"],["NEU001","Raising memo to seek Managementt's approval, writing reports of patients' treatments, minutes of departmental meetings and incident report"],["DA001","communication of appraisal timeline to departments, Monitor completion rates, Review and validate appraisal reports"],["MEDM001","Promotes Healthy collaboration with academic and non- academic staff"]];
+const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const STEPS = ["About you","Supervisor","Counter-signing officer","Your tasks","Monthly results","Your year","Save and pay"];
+const ISSUE_CHIPS = ["Shortage of personnel","Poor power supply","High patient load","Shortage of consumables","Equipment breakdown","Network downtime","Target met"];
+const KEY = "epms-form-draft-" + YEAR;
+
+const state = { step:0, kras:[], months: MONTHS.map(()=>[{k:"",s:"",i:""},{k:"",s:"",i:""}]) };
+const $ = id => document.getElementById(id);
+const TEXT_IDS = [...document.querySelectorAll('#f input[id]:not([type=search]):not([type=checkbox]):not(#kra_own):not(#edit_link), #f textarea[id]')].map(e=>e.id);
+
+// ---------- draft save (per device) ----------
+function saveDraft(){ try{ const v={}; TEXT_IDS.forEach(id=>v[id]=$(id).value); localStorage.setItem(KEY, JSON.stringify({v, kras:state.kras, months:state.months, step:state.step})); }catch(e){} }
+function loadDraft(){ try{ const d=JSON.parse(localStorage.getItem(KEY)||"null"); if(!d) return;
+  Object.entries(d.v||{}).forEach(([id,val])=>{ if($(id) && val!=null) $(id).value=val; });
+  if(Array.isArray(d.kras)) state.kras=d.kras; if(Array.isArray(d.months)&&d.months.length===12) state.months=d.months;
+  if(Number.isInteger(d.step)) state.step=Math.min(d.step,STEPS.length-1);
+}catch(e){} }
+
+// ---------- step navigation ----------
+function renderNav(){
+  $("stepnav").innerHTML = STEPS.map((s,i)=>`<li><button type="button" data-go="${i}" ${i===state.step?'aria-current="step"':''} class="${stepDone(i)&&i!==state.step?'done':''}"><span class="n">${stepDone(i)&&i!==state.step?'✓':i+1}</span>${s}</button></li>`).join("");
+  const cur = $("stepnav").querySelector('[aria-current="step"]'); if(cur) cur.scrollIntoView({block:"nearest",inline:"nearest"});
+}
+function show(i){
+  state.step=i;
+  document.querySelectorAll("section.step").forEach(s=>s.hidden = Number(s.dataset.step)!==i);
+  $("back_btn").style.visibility = i===0?"hidden":"visible";
+  $("next_btn").hidden = i===STEPS.length-1;
+  if(i===4) renderMonths();
+  if(i===6) renderReview();
+  renderNav(); saveDraft();
+  window.scrollTo({top:0,behavior:"instant" in window ? "instant":"auto"});
+}
+function requiredIn(i){ return [...document.querySelectorAll(`section[data-step="${i}"] [required]`)]; }
+function stepDone(i){
+  if(i<=2) return requiredIn(i).every(e=>e.value.trim());
+  if(i===3) return state.kras.length>0;
+  if(i===4) return state.months.some(m=>m.some(r=>r.k&&r.s!==""));
+  if(i===5) return true;
+  return false;
+}
+function validate(i){
+  let ok=true;
+  requiredIn(i).forEach(e=>{ const bad=!e.value.trim() || (e.type==="email"&&e.value&&!/^\S+@\S+\.\S+$/.test(e.value)); e.classList.toggle("invalid",bad); if(bad&&ok){ok=false; e.focus();} });
+  if(i===3){ $("kra_err").hidden = state.kras.length>0; if(!state.kras.length) ok=false; }
+  return ok;
+}
+$("next_btn").onclick=()=>{ if(validate(state.step)) show(state.step+1); };
+$("back_btn").onclick=()=>show(Math.max(0,state.step-1));
+$("stepnav").addEventListener("click",e=>{ const b=e.target.closest("[data-go]"); if(b) show(Number(b.dataset.go)); });
+document.addEventListener("input",e=>{ if(e.target.classList.contains("invalid")&&e.target.value.trim()) e.target.classList.remove("invalid"); if(TEXT_IDS.includes(e.target.id)) saveDraft(); });
+$("f").addEventListener("submit",e=>e.preventDefault());
+
+// ---------- tasks ----------
+const esc = s => String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const kraId = k => k.code+"|"+k.text;
+const codeLabel = c => (c==="1"||c==="2") ? "General ("+c+")" : c;
+function renderKraList(){
+  const q=$("kra_search").value.trim().toLowerCase();
+  const groups={};
+  KRAS.forEach(([code,text])=>{ if(q && !(text.toLowerCase().includes(q)||code.toLowerCase().includes(q))) return; (groups[code]=groups[code]||[]).push(text); });
+  const sel=new Set(state.kras.map(kraId));
+  const html=Object.entries(groups).map(([code,items])=>`<div class="kra-group"><h4>${esc(codeLabel(code))}</h4>${items.map(t=>{const id=code+"|"+t;const on=sel.has(id);return `<label class="kra ${on?'sel':''}"><input type="checkbox" data-code="${esc(code)}" data-text="${esc(t)}" ${on?'checked':''}><span>${esc(t)}</span></label>`}).join("")}</div>`).join("");
+  $("kra_list").innerHTML = html || `<p class="hint" style="padding:14px">No task matches "${esc(q)}". Try another word, or add it as your own task below.</p>`;
+  renderPicked();
+}
+function renderPicked(){
+  $("kra_count").textContent = state.kras.length ? `${state.kras.length} task${state.kras.length>1?'s':''} selected` : "No tasks selected yet";
+  $("kra_picked").innerHTML = state.kras.map((k,i)=>`<span class="chip" title="${esc(k.text)}"><b>${esc(codeLabel(k.code))}</b><span class="t">${esc(k.text)}</span><button type="button" aria-label="Remove ${esc(k.text)}" data-rm="${i}">×</button></span>`).join("");
+}
+$("kra_list").addEventListener("change",e=>{
+  const cb=e.target; if(cb.type!=="checkbox") return;
+  const k={code:cb.dataset.code,text:cb.dataset.text};
+  if(cb.checked){ if(!state.kras.some(x=>kraId(x)===kraId(k))) state.kras.push(k); } else state.kras=state.kras.filter(x=>kraId(x)!==kraId(k));
+  cb.closest(".kra").classList.toggle("sel",cb.checked); renderPicked(); $("kra_err").hidden=true; saveDraft(); renderNav();
+});
+$("kra_picked").addEventListener("click",e=>{ const b=e.target.closest("[data-rm]"); if(!b) return; state.kras.splice(Number(b.dataset.rm),1); renderKraList(); saveDraft(); renderNav(); });
+$("kra_search").addEventListener("input",renderKraList);
+function addOwn(){ const t=$("kra_own").value.trim(); if(!t) return; const k={code:"OWN",text:t}; if(!state.kras.some(x=>kraId(x)===kraId(k))) state.kras.push(k); $("kra_own").value=""; renderPicked(); $("kra_err").hidden=true; saveDraft(); renderNav(); }
+$("kra_own_add").onclick=addOwn;
+$("kra_own").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); addOwn(); } });
+
+// ---------- months ----------
+const openMonths=new Set([0]);
+function monthState(m){ const f=m.filter(r=>r.k&&r.s!=="").length; return f===2?["ok","Done"]:(m.some(r=>r.k||r.s!==""||r.i)?["part","Incomplete"]:["","Not filled"]); }
+function kraOptions(sel){
+  const opts=state.kras.map(k=>{const v=kraId(k);return `<option value="${esc(v)}" ${v===sel?'selected':''}>${esc((k.code==="OWN"?"":codeLabel(k.code)+" · ")+k.text)}</option>`}).join("");
+  return `<option value="">Choose a task…</option>`+opts;
+}
+function renderMonths(){
+  // drop selections that point at tasks no longer chosen
+  const valid=new Set(state.kras.map(kraId)); state.months.forEach(m=>m.forEach(r=>{ if(r.k&&!valid.has(r.k)) r.k=""; }));
+  if(!state.kras.length){ $("months").innerHTML=`<div class="warn">Choose your tasks in step 4 first, then come back here.</div>`; return; }
+  $("months").innerHTML = MONTHS.map((name,mi)=>{
+    const [cls,txt]=monthState(state.months[mi]);
+    return `<details class="month" data-m="${mi}" ${openMonths.has(mi)?'open':''}><summary><span class="chev" aria-hidden="true">›</span>${name} ${YEAR}<span class="mstate ${cls}" id="ms_${mi}">${txt}</span></summary><div class="mbody">
+      ${[0,1].map(ri=>{const r=state.months[mi][ri]; return `<div class="row"><div class="row-title">Task ${ri+1}</div>
+        <div class="field"><label for="m${mi}r${ri}k">Task</label><select id="m${mi}r${ri}k" data-m="${mi}" data-r="${ri}" data-f="k">${kraOptions(r.k)}</select></div>
+        <div class="grid sc">
+          <div class="field"><label for="m${mi}r${ri}s">Result (output)</label><input id="m${mi}r${ri}s" type="text" inputmode="decimal" placeholder="e.g. 85" value="${esc(r.s)}" data-m="${mi}" data-r="${ri}" data-f="s"></div>
+          <div class="field"><label for="m${mi}r${ri}i">Issues or challenges <span class="opt">(optional)</span></label><textarea id="m${mi}r${ri}i" rows="2" data-m="${mi}" data-r="${ri}" data-f="i" placeholder="What made this task difficult this month?">${esc(r.i)}</textarea>
+          <div class="qchips">${ISSUE_CHIPS.map(c=>`<button type="button" data-chip="${esc(c)}" data-m="${mi}" data-r="${ri}">+ ${esc(c)}</button>`).join("")}</div></div>
+        </div></div>`}).join("")}
+    </div></details>`;
+  }).join("");
+}
+function updMonthBadge(mi){ const el=$("ms_"+mi); if(!el) return; const [cls,txt]=monthState(state.months[mi]); el.className="mstate "+cls; el.textContent=txt; }
+$("months").addEventListener("input",e=>{ const t=e.target, f=t.dataset.f; if(!f) return; state.months[t.dataset.m][t.dataset.r][f]=t.value; updMonthBadge(Number(t.dataset.m)); saveDraft(); });
+$("months").addEventListener("change",e=>{ const t=e.target, f=t.dataset.f; if(f!=="k") return; state.months[t.dataset.m][t.dataset.r].k=t.value; updMonthBadge(Number(t.dataset.m)); saveDraft(); renderNav(); });
+$("months").addEventListener("click",e=>{ const b=e.target.closest("[data-chip]"); if(!b) return; const {m,r}=b.dataset; const row=state.months[m][r]; const c=b.dataset.chip;
+  if(!row.i.includes(c)) row.i = row.i.trim() ? row.i.trim().replace(/\.?$/,". ")+c+"." : c+"."; const ta=$(`m${m}r${r}i`); ta.value=row.i; updMonthBadge(Number(m)); saveDraft(); });
+$("months").addEventListener("toggle",e=>{ const d=e.target; if(d.matches&&d.matches("details.month")){ const m=Number(d.dataset.m); d.open?openMonths.add(m):openMonths.delete(m);} },true);
+$("fill_same").onclick=()=>{
+  const src=state.months.find(m=>m[0].k||m[1].k); if(!src){ $("fill_same").textContent="Choose the tasks for one month first"; setTimeout(()=>$("fill_same").textContent="Use the same two tasks for every empty month",2200); return; }
+  state.months.forEach(m=>m.forEach((r,ri)=>{ if(!r.k) r.k=src[ri].k; })); renderMonths(); saveDraft();
+};
+
+// ---------- review / output ----------
+const val = id => $(id).value.trim();
+function person(p){ return {surname:val(p+"_surname"),first_name:val(p+"_first"),other_name:val(p+"_other"),designation:val(p+"_designation"),ippis:val(p+"_ippis"),email:val(p+"_email"),phone:val(p+"_phone")}; }
+function collect(){
+  const emp=Object.assign(person("emp"),{department:val("emp_department"),unit:val("emp_unit")});
+  const byId=Object.fromEntries(state.kras.map(k=>[kraId(k),k]));
+  return {form:"UCH-EPMS-DETAILS",version:1,year:Number(YEAR),employee:emp,supervisor:person("sup"),countersigning_officer:person("cso"),
+    kras:state.kras.map(k=>({code:k.code,kra:k.text})),
+    monthly:MONTHS.map((name,mi)=>({month:name,rows:state.months[mi].map(r=>({code:r.k?byId[r.k].code:"",kra:r.k?byId[r.k].text:"",output:r.s.trim(),issues:r.i.trim()}))})),
+    extras:{outstanding_performance:val("x_outstanding"),areas_of_improvement:val("x_improve"),training_needs:val("x_training"),future_goals:val("x_goals"),other_feedback:val("x_other")}};
+}
+function fullName(p){ return [p.surname,p.first_name,p.other_name].filter(Boolean).join(" "); }
+function toText(d){
+  const L=[]; const line=(k,v)=>L.push(`${k}: ${v||"-"}`);
+  L.push(`EPMS ${d.year} DETAILS - ${fullName(d.employee).toUpperCase()}`,"");
+  L.push("== EMPLOYEE =="); line("Name",fullName(d.employee)); line("Designation",d.employee.designation); line("IPPIS",d.employee.ippis); line("Email",d.employee.email); line("Phone",d.employee.phone); line("Department",d.employee.department); line("Ward/Unit",d.employee.unit); L.push("");
+  [["SUPERVISOR",d.supervisor],["COUNTER-SIGNING OFFICER",d.countersigning_officer]].forEach(([h,p])=>{ L.push(`== ${h} ==`); line("Name",fullName(p)); line("Designation",p.designation); line("IPPIS",p.ippis); line("Email",p.email); line("Phone",p.phone); L.push(""); });
+  L.push("== TASKS (KRAs) =="); d.kras.forEach((k,i)=>L.push(`${i+1}. [${k.code}] ${k.kra}`)); L.push("");
+  L.push("== MONTHLY RESULTS ==");
+  d.monthly.forEach(m=>{ const rows=m.rows.filter(r=>r.kra||r.output||r.issues); if(!rows.length){ L.push(`${m.month}: (no figures yet)`); return; }
+    L.push(`${m.month}:`); m.rows.forEach((r,i)=>{ if(!(r.kra||r.output||r.issues)) return; L.push(`  ${i+1}) [${r.code||"?"}] ${r.kra||"(no task chosen)"}`); L.push(`     Result: ${r.output||"-"} | Issues: ${r.issues||"-"}`); }); });
+  L.push("");
+  const x=d.extras; if(Object.values(x).some(Boolean)){ L.push("== ABOUT THE YEAR =="); line("Outstanding performance",x.outstanding_performance); line("Areas of improvement",x.areas_of_improvement); line("Training needs",x.training_needs); line("Future goals",x.future_goals); line("Other",x.other_feedback); L.push(""); }
+  L.push("----- DATA FOR THE EPMS FILL (please do not edit below this line) -----", JSON.stringify(d), "----- END -----");
+  return L.join("\n");
+}
+function renderReview(){
+  const d=collect(); const miss=[];
+  [["About you",0],["Supervisor",1],["Counter-signing officer",2]].forEach(([n,i])=>{ if(!stepDone(i)) miss.push(`${n}: some required fields are empty`); });
+  if(!d.kras.length) miss.push("Your tasks: no task chosen");
+  const empty=d.monthly.filter(m=>!m.rows.some(r=>r.kra&&r.output)).map(m=>m.month.slice(0,3));
+  if(empty.length===12) miss.push("Monthly results: no month has a task and result yet");
+  let h = miss.length ? `<div class="warn"><strong>Some details are missing.</strong> Please complete these before you submit:<ul>${miss.map(m=>`<li>${esc(m)}</li>`).join("")}</ul></div>` : `<div class="good"><strong>Everything required is filled in.</strong></div>`;
+  if(empty.length && empty.length<12) h+=`<p class="hint">Months without figures: ${empty.join(", ")}. That's fine if you don't have them yet.</p>`;
+  $("checks").innerHTML=h; $("out").textContent=toText(d); 
+}
+// ---------- backend + payment ----------
+const CONFIG = { FUNCTION_URL: "__FUNCTION_URL__", FLW_PUBLIC_KEY: "__FLW_PUBLIC_KEY__", PRICE: 12400 };
+const TOKEN_KEY = "epms-token-" + YEAR;
+let paymentStatus = "unpaid", txRef = "", paymentsReady = null;
+const params = new URLSearchParams(location.search);
+let token = params.get("t") || (()=>{ try{ return localStorage.getItem(TOKEN_KEY) || ""; }catch(e){ return ""; } })();
+
+async function api(action, extra){
+  const r = await fetch(CONFIG.FUNCTION_URL, { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(Object.assign({action}, extra||{})) });
+  const b = await r.json().catch(()=>({}));
+  if(!r.ok) { const e = new Error(b.error || ("http_"+r.status)); e.code = b.error; throw e; }
+  return b;
+}
+function editLink(){ return location.origin + location.pathname + "?t=" + token; }
+function rememberToken(t){ token=t; try{ localStorage.setItem(TOKEN_KEY,t); }catch(e){} try{ history.replaceState(null,"",location.pathname+"?t="+t); }catch(e){} }
+function setStatus(id,msg,cls){ const el=$(id); el.textContent=msg; el.className="status"+(cls?" "+cls:""); }
+function busy(on,label){ const b=$("submit_btn"); b.disabled=on; b.classList.toggle("busy",on); if(label) b.textContent=label; }
+const priceFmt = n => Number(n).toLocaleString("en-NG");
+
+function renderPaidState(){
+  const paid = paymentStatus === "paid";
+  $("done_box").hidden = !paid;
+  $("edit_link").value = token ? editLink() : "";
+  if(paid){
+    $("pay_title").textContent = "Update your details";
+    $("pay_text").textContent = "Your payment is confirmed. If you change any answer, tap Save my changes so the update reaches us.";
+    $("submit_btn").textContent = "Save my changes";
+  } else {
+    $("pay_title").textContent = "Submit your details";
+    $("submit_btn").innerHTML = "Save and pay &#8358;" + priceFmt(CONFIG.PRICE);
+  }
+  const bn=$("edit_banner");
+  if(token && paid){ bn.hidden=false; bn.className="banner"; bn.textContent="You're editing your submitted EPMS details. Payment is confirmed."; }
+  else if(token){ bn.hidden=false; bn.className="banner warn"; bn.textContent="Your details are saved, but payment is not complete yet. Finish on the last step."; }
+  else bn.hidden=true;
+}
+
+function setFromData(d){
+  const setP=(p,o)=>{ if(!o) return; [["surname","surname"],["first","first_name"],["other","other_name"],["designation","designation"],["ippis","ippis"],["email","email"],["phone","phone"]].forEach(([a,b])=>{ if($(p+"_"+a)) $(p+"_"+a).value=o[b]||""; }); };
+  setP("emp",d.employee); setP("sup",d.supervisor); setP("cso",d.countersigning_officer);
+  if(d.employee){ $("emp_department").value=d.employee.department||"Clinical Nursing"; $("emp_unit").value=d.employee.unit||""; }
+  state.kras=(d.kras||[]).map(k=>({code:k.code,text:k.kra}));
+  state.months=MONTHS.map((_,mi)=>{ const m=(d.monthly||[])[mi]; return [0,1].map(ri=>{ const r=m&&m.rows&&m.rows[ri]; return r?{k:r.kra?(r.code+"|"+r.kra):"",s:r.output||"",i:r.issues||""}:{k:"",s:"",i:""}; }); });
+  const x=d.extras||{}; $("x_outstanding").value=x.outstanding_performance||""; $("x_improve").value=x.areas_of_improvement||""; $("x_training").value=x.training_needs||""; $("x_goals").value=x.future_goals||""; $("x_other").value=x.other_feedback||"";
+}
+
+function firstIncompleteStep(){ for(const i of [0,1,2,3]){ if(!stepDone(i)) return i; } return -1; }
+
+let fwLoading=null;
+function loadFlutterwave(){
+  if(window.FlutterwaveCheckout) return Promise.resolve();
+  if(!fwLoading) fwLoading=new Promise((res,rej)=>{ const s=document.createElement("script"); s.src="https://checkout.flutterwave.com/v3.js"; s.onload=res; s.onerror=()=>{fwLoading=null; rej(new Error("fw_load"));}; document.head.appendChild(s); });
+  return fwLoading;
+}
+async function verifyPayment(transactionId){
+  for(let a=0;a<4;a++){
+    try{ const r=await api("verify",{token,transaction_id:String(transactionId)}); if(r.payment_status==="paid") return true; }catch(e){}
+    await new Promise(r=>setTimeout(r,2500));
+  }
+  return false;
+}
+async function startPayment(){
+  const d=collect();
+  if(!CONFIG.FLW_PUBLIC_KEY || CONFIG.FLW_PUBLIC_KEY.startsWith("__") || paymentsReady===false){
+    setStatus("send_status","Your details are saved. Online payment is not open yet, so you'll be contacted about payment. Keep your edit link below.","ok");
+    $("done_box").hidden=false; $("done_title").textContent="Details saved"; $("done_text").textContent="Payment will be arranged separately. You can still correct your answers with this private link."; $("edit_link").value=editLink();
+    return;
+  }
+  try{ await loadFlutterwave(); }catch(e){ setStatus("send_status","The payment window could not load. Check your internet connection and tap the button again. Your details are saved.","bad"); return; }
+  let settled=false;
+  const modal = window.FlutterwaveCheckout({
+    public_key: CONFIG.FLW_PUBLIC_KEY,
+    tx_ref: txRef + "-" + Date.now().toString(36),
+    amount: CONFIG.PRICE, currency: "NGN",
+    payment_options: "card,banktransfer,ussd",
+    customer: { email: d.employee.email, phone_number: d.employee.phone, name: fullName(d.employee) },
+    customizations: { title: "UCH Nurses EPMS", description: "UCH Nurses EPMS " + YEAR + " - " + fullName(d.employee) },
+    meta: { product: "UCH Nurses EPMS", year: YEAR, ippis: d.employee.ippis || "" },
+    callback: async (resp) => {
+      settled=true; try{ modal && modal.close && modal.close(); }catch(e){}
+      setStatus("send_status","Confirming your payment…","");
+      const ok = resp && resp.transaction_id ? await verifyPayment(resp.transaction_id) : false;
+      if(ok){ paymentStatus="paid"; renderPaidState(); setStatus("send_status","Payment confirmed. Thank you.","ok"); $("done_box").scrollIntoView({behavior:"smooth",block:"start"}); }
+      else setStatus("send_status","We couldn't confirm the payment yet. If you were debited, don't pay again: it will be confirmed automatically, and you can reopen your edit link later to check. Otherwise tap the button to try again.","bad");
+    },
+    onclose: () => { if(!settled && paymentStatus!=="paid") setStatus("send_status","Payment was not completed. Your details are saved; tap the button to try again when you're ready.",""); }
+  });
+}
+$("submit_btn").onclick=async()=>{
+  const miss=firstIncompleteStep();
+  if(miss>=0){ show(miss); validate(miss); return; }
+  if(!$("consent").checked){ setStatus("send_status","Please tick the confirmation box first.","bad"); $("consent").focus(); return; }
+  const wasPaid = paymentStatus==="paid";
+  busy(true,"Saving…"); setStatus("send_status","","");
+  try{
+    const r=await api("save",{token:token||undefined,data:collect()});
+    rememberToken(r.token); txRef=r.tx_ref; paymentStatus=r.payment_status;
+    renderPaidState(); saveDraft();
+    if(paymentStatus==="paid"){ setStatus("send_status", wasPaid?"Your changes are saved.":"Saved.", "ok"); }
+    else { busy(false); renderPaidState(); await startPayment(); }
+  }catch(e){
+    if(e.code==="not_found"){ token=""; try{localStorage.removeItem(TOKEN_KEY);}catch(_){} setStatus("send_status","That edit link is no longer valid. Tap the button again to submit as a new entry.","bad"); }
+    else setStatus("send_status","Your details could not be saved. Check your internet connection and try again.","bad");
+  }finally{ busy(false); renderPaidState(); }
+};
+$("copy_link").onclick=async()=>{ try{ await navigator.clipboard.writeText($("edit_link").value); setStatus("link_status","Link copied.","ok"); }catch(e){ $("edit_link").select(); setStatus("link_status","Link selected. Use your phone's Copy option.",""); } };
+$("reset_btn").onclick=()=>{ $("reset_confirm").hidden=false; $("reset_btn").hidden=true; };
+$("reset_no").onclick=()=>{ $("reset_confirm").hidden=true; $("reset_btn").hidden=false; };
+$("reset_yes").onclick=()=>{ try{localStorage.removeItem(KEY);localStorage.removeItem(TOKEN_KEY);}catch(e){} token=""; paymentStatus="unpaid"; try{history.replaceState(null,"",location.pathname);}catch(e){}
+  TEXT_IDS.forEach(id=>$(id).value = id==="emp_department"?"Clinical Nursing":""); state.kras=[]; state.months=MONTHS.map(()=>[{k:"",s:"",i:""},{k:"",s:"",i:""}]); $("consent").checked=false;
+  $("reset_confirm").hidden=true; $("reset_btn").hidden=false; renderKraList(); renderPaidState(); show(0); };
+
+// ---------- start ----------
+loadDraft(); renderKraList(); show(state.step); renderPaidState();
+api("config").then(c=>{ paymentsReady=!!c.payments_ready; if(c.price) CONFIG.PRICE=c.price; renderPaidState(); }).catch(()=>{});
+if(token){
+  api("load",{token}).then(r=>{ setFromData(r.data||{}); paymentStatus=r.payment_status; txRef=r.tx_ref; rememberToken(token); renderKraList(); show(state.step); renderPaidState(); saveDraft(); })
+  .catch(e=>{ if(e.code==="not_found"||e.code==="bad_token"){ token=""; try{localStorage.removeItem(TOKEN_KEY);}catch(_){} renderPaidState(); } });
+}
+})();
+</script>
+
+</body>
+</html>
