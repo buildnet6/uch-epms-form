@@ -156,7 +156,7 @@ footer.note{color:var(--muted);font-size:13px;margin-top:18px;text-align:center}
     <div class="eyebrow" id="top_eyebrow">UCH Ibadan · Clinical Nursing · EPMS 2025</div>
     <div class="banner" id="edit_banner" hidden></div>
     <h1>Your EPMS details, in one short form</h1>
-    <p class="lede">Answer these questions once. Your details will be used to fill your full EPMS workbook for you: the performance contract, the 12 monthly reviews and the 4 quarterly appraisals.</p>
+    <p class="lede">Answer these questions once. We fill your full EPMS workbook for you (the performance contract, the 12 monthly reviews and the 4 quarterly appraisals) and email it to you within about 6 hours of payment. You sign it yourself before submitting it.</p>
     <div class="need">
       <strong>Have these ready (about 10 minutes):</strong>
       <ul>
@@ -185,7 +185,7 @@ footer.note{color:var(--muted);font-size:13px;margin-top:18px;text-align:center}
     <div class="grid two">
       <div class="field"><label for="emp_designation">Designation (rank) <span class="req">*</span></label><input id="emp_designation" type="text" list="ranks" required placeholder="e.g. Senior Nursing Officer"></div>
       <div class="field"><label for="emp_ippis">IPPIS No. <span class="req">*</span></label><input id="emp_ippis" type="text" inputmode="numeric" required placeholder="e.g. 197920"></div>
-      <div class="field"><label for="emp_email">Email <span class="req">*</span></label><input id="emp_email" type="email" required autocomplete="email"></div>
+      <div class="field"><label for="emp_email">Email <span class="req">*</span> <span class="opt">(your workbook is sent here)</span></label><input id="emp_email" type="email" required autocomplete="email"></div>
       <div class="field"><label for="emp_phone">Phone number <span class="req">*</span></label><input id="emp_phone" type="tel" required autocomplete="tel" placeholder="e.g. 08012345678"></div>
       <div class="field"><label for="emp_department">Department <span class="req">*</span></label><input id="emp_department" type="text" required value="Clinical Nursing"></div>
       <div class="field"><label for="emp_unit">Ward / Unit / Clinic <span class="req">*</span></label><input id="emp_unit" type="text" required placeholder="e.g. Eye Clinic, Labour Ward"></div>
@@ -279,7 +279,7 @@ footer.note{color:var(--muted);font-size:13px;margin-top:18px;text-align:center}
     </div>
     <div class="send done" id="done_box" hidden>
       <h3 id="done_title">Payment received. You're all set.</h3>
-      <p id="done_text">Your EPMS forms will be filled from these details. If you need to correct anything later, open your private edit link, make the change and tap <b>Save my changes</b>.</p>
+      <p id="done_text">Your completed EPMS workbook will be emailed to you within about 6 hours. If you need to correct anything before then, open your private edit link, make the change and tap <b>Save my changes</b>.</p>
       <div class="field"><label for="edit_link">Your private edit link</label>
         <div class="add-own"><input id="edit_link" type="text" readonly><button type="button" class="btn small" id="copy_link">Copy link</button></div></div>
       <p class="hint">Keep this link to yourself: anyone who has it can change your answers. Send it to yourself on WhatsApp so you don't lose it.</p>
@@ -307,7 +307,7 @@ footer.note{color:var(--muted);font-size:13px;margin-top:18px;text-align:center}
     <option value="Assistant Director of Nursing"><option value="Deputy Director of Nursing"><option value="Director of Nursing">
   </datalist>
 
-  <footer class="note">Your details are stored securely and used only to complete your EPMS forms. Payments are processed by Flutterwave; card details never touch this site.</footer>
+  <footer class="note">A service of BuildNET Digital Solutions. Questions? WhatsApp 08086579390 (messages only, no calls).<br>Your details are stored securely and used only to complete your EPMS forms. Payments are processed by Flutterwave; card details never touch this site. Signatures are not collected: you sign your workbook yourself.</footer>
 </div>
 
 <script>
@@ -527,7 +527,7 @@ function renderPaidState(){
   $("edit_link").value = token ? editLink() : "";
   if(paid){
     $("done_title").textContent = "Payment received. You're all set.";
-    $("done_text").innerHTML = "Your EPMS forms will be filled from these details. If you need to correct anything later, open your private edit link, make the change and tap <b>Save my changes</b>.";
+    $("done_text").innerHTML = "Your completed EPMS workbook will be emailed to you within about 6 hours. If you need to correct anything before then, open your private edit link, make the change and tap <b>Save my changes</b>.";
     $("pay_title").textContent = "Update your details";
     $("pay_text").textContent = "Your payment is confirmed. If you change any answer, tap Save my changes so the update reaches us.";
     $("submit_btn").textContent = "Save my changes";
