@@ -132,6 +132,9 @@ pre.out{white-space:pre-wrap;word-break:break-word;background:var(--surface-2);b
 .banner{background:var(--green-soft);border-radius:10px;padding:10px 14px;font-size:14.5px;font-weight:600}
 .banner.warn{background:var(--amber-soft);color:var(--amber-ink)}
 .btn.busy{opacity:.7;cursor:progress}
+[hidden]{display:none!important}
+.steps button:disabled{opacity:.45;cursor:not-allowed}
+.warn-inline{color:var(--danger);font-size:14px;font-weight:600}
 footer.note{color:var(--muted);font-size:13px;margin-top:18px;text-align:center}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
@@ -238,6 +241,7 @@ footer.note{color:var(--muted);font-size:13px;margin-top:18px;text-align:center}
     </div>
     <div class="copy-row"><button type="button" class="btn small" id="fill_same">Use the same two tasks for every empty month</button></div>
     <div class="months" id="months"></div>
+    <p class="warn-inline" id="months_err" hidden>Fill at least one month: choose a task and enter its result. You can add the other months later with your edit link.</p>
   </section>
 
   <!-- 6 -->
@@ -301,7 +305,7 @@ footer.note{color:var(--muted);font-size:13px;margin-top:18px;text-align:center}
 const YEAR = "2025";
 const KRAS = [["1","Giving health information to mothers on appointments at ANC & PNC"],["1","Safe Delivery of babies. Prevention of infection"],["2","Cascade of PMS process"],["2","Compliance with ECM process"],["C3","Through the usage of the staggered appointment system in the clinics"],["C1","Provide, continuous Training for Staff,"],["C6","Coordination of the promotion exercise"],["C4","Capacity building attendance"],["BME001","Daily Cleaning of work environment and Weekly Disinfection of work tables"],["CTAGC001","To ensure proper service delivery by members of staff of the geriatric centre"],["CAAPD001","Task shifting to allied staff for initial assessments/ psychoeducation"],["CNOO1","Compliance with hand hygiene and tidying up of patients' bedside and environment"],["CNOO1","Disinfection of equipment and instrument, ensure optimal sterilization of surgical instrument in all theatres Biannual wash-down of wards and theatres"],["CNOO1","Prompt response to patients need through daily clinical nursing auditing, annual study block program, improved documentation and collaboration with other health care professionals"],["CMD001","conduct and monitoring of committee meetings and ensuring approved resolution"],["CLIPSY001","Conduct regular individual and psychological sessions based on patients needs"],["COMED001","Establish and maintain an outbreak alert and response system; Initiate investigation of 100% of reported outbreaks;"],["PAED001","Give health talks at Rallies special days for childhood conditions in the hospital, TV stations, Radio station, rallies and Social Media"],["PAED001","Run regular out-patient clinic, ensure emergengy ward service, ensure in-patient services and Provide consult for Paediatric patient when requested by other unit"],["PAED001","Send consult to paliative care department for all newly children diagnosed with cancer and ensure that all patient with severe pain have access to morphine"],["SURG001","Optimize Operating Theatre Scheduling to improve theatre utilization and reduce idle time"],["SURG001","Introduce Preventive Maintenance for Surgical Equipment to reduce equipment downtime"],["SURG001","Strengthen Clinical Documentation for better continuity of care and data quality"],["ED001","1) Monthly audit of critically ill patient encounters"],["ED001","2) ED admission and transfer registers"],["ED001","3) Bed management reports"],["ENT/ORL001","4. To draw up strategies in improving ENT, Head and Neck services"],["ENT/ORL001","5. To draw up strategies in ensuring public enlightenment and outreach of at least one ENT disease annually"],["ENV001","Routine Disinfection, Disinfestation, Deratization, Decontamination and Prevention of Stagnant water"],["DFM001","To schedule appointments for more patients to see family physicians at special interest clinics"],["DFM001","To reduce the wait time (time of arrival to doctor's consultation) of patients to not more than 30minutes"],["GAD001","Strengthen reporting system across units"],["HIM001","Engagement of trained health information professsionals"],["HPC001","To implement evidence based protocols for pain,nausea, dyspnoea and other symptoms ( WHO analgesic ladder, opioid titration charts)"],["HPC001","5) To conduct regular wards rounds with physicians, nurses, medical social workers, clinical psychologist, pharmacists and chaplains"],["HPC001","To develop a dashboard tracking symptom control, patient satisfaction, advance care planning documentation and hospital readmission"],["HSD001","1. To issue letters of authrization to the patient and prepare their bills and oversight on Emergency Medical Services, admission/discharge processes of the patients"],["HR001","Implement transparent recruitment and personnel administration processes in line with Public Service Rules and approved HR policies"],["HR001","Organize induction programmes, circulate orientation schedules and provide institutional policy and ethics training"],["ITD001","Creation and maintenance of Staff profile for Internet, Institutional emails, ID card and payslips"],["PRO001","QUICK RESPONSE TO PHONE CALLS"],["MED001","Implement structured admission-to-discharge care protocols Incorporate discharge planning in admission rounds"],["MED001","Develop and roll out condition-specific management SOP s. Severity score warning system"],["MLS001","To provide adequate signages directing patients to laboratories"],["MSSD001","Develop Standard Operating Procedures (SOPs) and clinical guidelines"],["MSSD001","Conduct patient education sessions"],["NM001","Streamlined appointment and scheduling system; multidisciplinary approach to patient management with referring departments"],["NURSED001","Strengthen partnerships with accredited clinical practice sites to ensure adequate student clinical exposure. Ensure all students have access to required clinical placement as at when due"],["O & G 001","Prompt decision making in delivery options for our antenatal patients"],["O & G 001","Surgical Procedures performed by the most senior Consultants and Resident Doctors on duty"],["OPHTHAL001","Clinic workflow optimization, appointment scheduling improvements, theatre efficiency monitoring, surgical waiting lists monitoring and management, referral pathways strengthening (through outreach programmes) and quarterly Clinical Governance Meetings"],["OPHTHAL001","Community eye screening and outreach programmes"],["OPHTHAL001","Strengthen administrative coordination through standardised workflows and digital record management; conduct periodic reviews of administrative processes"],["OMS001","Develop and Publish a Triage SOP: Draft and implement a Standard Operating Procedure (SOP) for the pre-consultation patient-sorting workflow, leveraging the Senior Registrars' JD mandate for \"general pre-Consultant organization of the clinic.\""],["OMS001","Institute Monthly Trauma Audit Meetings: Integrate a specific \"Trauma Timeline Review\" into the monthly departmental meetings to audit case notes, ensuring 100% of interventions are documented and completed within the 24-hour window"],["OMS001","Design the OMS Pre-Operative Clearance Form: Create a standardized physical/digital checklist that mandates sign-offs for imaging (CT/Radiographs), blood cross-matching, and patient counseling (as per Senior Registrars' JD)"],["OMS001","Distribute the OMS Clinical SOP Manual: Compile and issue a pocket-sized or digital manual detailing the standard operating procedures for all minor oral surgeries and extractions to all resident doctors"],["OMS001","Develop the OMS IPC Audit Checklist"],["ORTHO001","Managing patients with musculoskeletal disease/disorders and trauma presented in the Hospital"],["ORTHO001","Supporting administrative processes in the Department"],["PERI001","Strengthen clinical teaching through structured clinical rotations, weekly operating room teaching, skills demonstrations, and periodic OSCE assessments"],["PHYSIO001","Ensure that physiotherapy services are accessible for 24hours daily 2.Ensure that the department is clean and in good order to receive patients 3. Ensure that equipment are functional and in good condition for evidence-based patient care"],["PHYSIO001","Daily health talk at outpatient clinics and antenatal clinic"],["PS001","Help to schedule multiple specialists appointment within a day for patient's conducive"],["PS001","Remind specialists and patient's of appointment"],["PS001","Ensure that all staff are abreast with the S. O. P of the Department"],["PSY001","Regular training of staff on quality care delivery"],["PSY001","To inform media houses, religious bodies and schools about planned mental health awareness"],["PHN001","Give reliable health information to all clients that attend the outpatient clinic in the hospital"],["PHN001","Document attendance"],["RAD001","Documentation of all images repeats adverse reaction and report errors"],["SOM001","Strengthen clinical teaching through structured clinical rotations, weekly bedside teaching, skills demonstrations, and periodic OSCE assessments"],["SON001","Conduct routine clinical supervision and placement compliance checks"],["SOHN001","Adequate monitoring and supervision of students on clinical posting"],["SDU001","Safe and conducive care for babies of staff and non-staff"],["SDU001","Establish a daily structured Patient Helper/Customer Assistance Desk"],["SMED001","Regular Health talks, Sending bulk SMS to all Staff on relevant Health issues,"],["TQM001","Statistical reports of various quality improvement projects"],["NEU001","Raising memo to seek Managementt's approval, writing reports of patients' treatments, minutes of departmental meetings and incident report"],["DA001","communication of appraisal timeline to departments, Monitor completion rates, Review and validate appraisal reports"],["MEDM001","Promotes Healthy collaboration with academic and non- academic staff"]];
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-const STEPS = ["About you","Supervisor","Counter-signing officer","Your tasks","Monthly results","Your year","Save and pay"];
+const STEPS = ["About you","Supervisor","Counter-signing officer","Your tasks","Monthly results","Your year","Finish and pay"];
 const ISSUE_CHIPS = ["Shortage of personnel","Poor power supply","High patient load","Shortage of consumables","Equipment breakdown","Network downtime","Target met"];
 const KEY = "epms-form-draft-" + YEAR;
 
@@ -318,11 +322,14 @@ function loadDraft(){ try{ const d=JSON.parse(localStorage.getItem(KEY)||"null")
 }catch(e){} }
 
 // ---------- step navigation ----------
+function maxReachable(){ for(let i=0;i<5;i++){ if(!stepDone(i)) return i; } return STEPS.length-1; }
 function renderNav(){
-  $("stepnav").innerHTML = STEPS.map((s,i)=>`<li><button type="button" data-go="${i}" ${i===state.step?'aria-current="step"':''} class="${stepDone(i)&&i!==state.step?'done':''}"><span class="n">${stepDone(i)&&i!==state.step?'✓':i+1}</span>${s}</button></li>`).join("");
+  const reach=Math.max(maxReachable(), state.step);
+  $("stepnav").innerHTML = STEPS.map((s,i)=>`<li><button type="button" data-go="${i}" ${i===state.step?'aria-current="step"':''} ${i>reach?'disabled title="Finish the earlier steps first"':''} class="${stepDone(i)&&i!==state.step?'done':''}"><span class="n">${stepDone(i)&&i!==state.step?'✓':i+1}</span>${s}</button></li>`).join("");
   const cur = $("stepnav").querySelector('[aria-current="step"]'); if(cur) cur.scrollIntoView({block:"nearest",inline:"nearest"});
 }
 function show(i){
+  if(i>maxReachable() && i>state.step){ i=maxReachable(); }
   state.step=i;
   document.querySelectorAll("section.step").forEach(s=>s.hidden = Number(s.dataset.step)!==i);
   $("back_btn").style.visibility = i===0?"hidden":"visible";
@@ -344,11 +351,12 @@ function validate(i){
   let ok=true;
   requiredIn(i).forEach(e=>{ const bad=!e.value.trim() || (e.type==="email"&&e.value&&!/^\S+@\S+\.\S+$/.test(e.value)); e.classList.toggle("invalid",bad); if(bad&&ok){ok=false; e.focus();} });
   if(i===3){ $("kra_err").hidden = state.kras.length>0; if(!state.kras.length) ok=false; }
+  if(i===4){ const good=stepDone(4); $("months_err").hidden=good; if(!good){ ok=false; $("months_err").scrollIntoView({block:"center"}); } }
   return ok;
 }
 $("next_btn").onclick=()=>{ if(validate(state.step)) show(state.step+1); };
 $("back_btn").onclick=()=>show(Math.max(0,state.step-1));
-$("stepnav").addEventListener("click",e=>{ const b=e.target.closest("[data-go]"); if(b) show(Number(b.dataset.go)); });
+$("stepnav").addEventListener("click",e=>{ const b=e.target.closest("[data-go]"); if(!b||b.disabled) return; const g=Number(b.dataset.go); if(g>state.step){ for(let i=state.step;i<g;i++){ if(!validate(i)){ show(i); return; } } } show(g); });
 document.addEventListener("input",e=>{ if(e.target.classList.contains("invalid")&&e.target.value.trim()) e.target.classList.remove("invalid"); if(TEXT_IDS.includes(e.target.id)) saveDraft(); });
 $("f").addEventListener("submit",e=>e.preventDefault());
 
@@ -477,6 +485,8 @@ function renderPaidState(){
   $("done_box").hidden = !paid;
   $("edit_link").value = token ? editLink() : "";
   if(paid){
+    $("done_title").textContent = "Payment received. You're all set.";
+    $("done_text").innerHTML = "Your EPMS forms will be filled from these details. If you need to correct anything later, open your private edit link, make the change and tap <b>Save my changes</b>.";
     $("pay_title").textContent = "Update your details";
     $("pay_text").textContent = "Your payment is confirmed. If you change any answer, tap Save my changes so the update reaches us.";
     $("submit_btn").textContent = "Save my changes";
@@ -499,7 +509,7 @@ function setFromData(d){
   const x=d.extras||{}; $("x_outstanding").value=x.outstanding_performance||""; $("x_improve").value=x.areas_of_improvement||""; $("x_training").value=x.training_needs||""; $("x_goals").value=x.future_goals||""; $("x_other").value=x.other_feedback||"";
 }
 
-function firstIncompleteStep(){ for(const i of [0,1,2,3]){ if(!stepDone(i)) return i; } return -1; }
+function firstIncompleteStep(){ for(const i of [0,1,2,3,4]){ if(!stepDone(i)) return i; } return -1; }
 
 let fwLoading=null;
 function loadFlutterwave(){
@@ -508,9 +518,12 @@ function loadFlutterwave(){
   return fwLoading;
 }
 async function verifyPayment(transactionId){
-  for(let a=0;a<4;a++){
-    try{ const r=await api("verify",{token,transaction_id:String(transactionId)}); if(r.payment_status==="paid") return true; }catch(e){}
-    await new Promise(r=>setTimeout(r,2500));
+  // bank transfers and USSD can take a few minutes to settle, so keep checking for about 3 minutes
+  const waits=[0,3000,4000,5000,6000,8000,10000,12000,15000,15000,20000,20000,25000,30000];
+  for(let a=0;a<waits.length;a++){
+    await new Promise(r=>setTimeout(r,waits[a]));
+    if(a===4) setStatus("send_status","Still confirming with Flutterwave. Bank transfers can take a minute or two, so please keep this page open.","");
+    try{ const r=await api("check",{token,transaction_id:transactionId?String(transactionId):undefined}); if(r.payment_status==="paid") return true; }catch(e){}
   }
   return false;
 }
@@ -523,9 +536,11 @@ async function startPayment(){
   }
   try{ await loadFlutterwave(); }catch(e){ setStatus("send_status","The payment window could not load. Check your internet connection and tap the button again. Your details are saved.","bad"); return; }
   let settled=false;
+  const attemptRef = txRef + "-" + Date.now().toString(36);
+  try{ await api("start",{token,attempt_ref:attemptRef}); }catch(e){}
   const modal = window.FlutterwaveCheckout({
     public_key: CONFIG.FLW_PUBLIC_KEY,
-    tx_ref: txRef + "-" + Date.now().toString(36),
+    tx_ref: attemptRef,
     amount: CONFIG.PRICE, currency: "NGN",
     payment_options: "card,banktransfer,ussd",
     customer: { email: d.employee.email, phone_number: d.employee.phone, name: fullName(d.employee) },
@@ -534,12 +549,24 @@ async function startPayment(){
     callback: async (resp) => {
       settled=true; try{ modal && modal.close && modal.close(); }catch(e){}
       setStatus("send_status","Confirming your payment…","");
-      const ok = resp && resp.transaction_id ? await verifyPayment(resp.transaction_id) : false;
+      const ok = await verifyPayment(resp && resp.transaction_id);
       if(ok){ paymentStatus="paid"; renderPaidState(); setStatus("send_status","Payment confirmed. Thank you.","ok"); $("done_box").scrollIntoView({behavior:"smooth",block:"start"}); }
-      else setStatus("send_status","We couldn't confirm the payment yet. If you were debited, don't pay again: it will be confirmed automatically, and you can reopen your edit link later to check. Otherwise tap the button to try again.","bad");
+      else { renderPaidState(); showPending(); }
     },
-    onclose: () => { if(!settled && paymentStatus!=="paid") setStatus("send_status","Payment was not completed. Your details are saved; tap the button to try again when you're ready.",""); }
+    onclose: async () => {
+      if(settled || paymentStatus==="paid") return;
+      // a transfer may have been made without the window reporting back: check before saying anything
+      setStatus("send_status","Checking whether a payment came through…","");
+      const ok = await verifyPayment(null);
+      if(ok){ paymentStatus="paid"; renderPaidState(); setStatus("send_status","Payment confirmed. Thank you.","ok"); }
+      else setStatus("send_status","No payment has come through yet. Your details are saved. If you made a transfer, don't pay again: reopen your edit link in a few minutes and it will show as confirmed. Otherwise tap the button to pay.","");
+    }
   });
+}
+function showPending(){
+  setStatus("send_status","Your payment is still being confirmed by Flutterwave. You don't need to pay again. Your details are saved: open your private edit link below in a few minutes and it will show as confirmed.","");
+  $("done_box").hidden=false; $("done_title").textContent="Payment being confirmed";
+  $("done_text").textContent="Keep this link. Open it again in a few minutes to see your payment confirmed. You can also use it to correct your answers."; $("edit_link").value=editLink();
 }
 $("submit_btn").onclick=async()=>{
   const miss=firstIncompleteStep();
