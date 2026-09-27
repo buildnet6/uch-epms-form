@@ -8,7 +8,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const PRICE = Number(Deno.env.get("EPMS_PRICE") ?? "1000");
+const PRICE = Number(Deno.env.get("EPMS_PRICE") ?? "12400");
 const CURRENCY = "NGN";
 const FLW = "https://api.flutterwave.com/v3";
 const FLW_SECRET_KEY = Deno.env.get("FLW_SECRET_KEY") ?? "";
@@ -45,11 +45,8 @@ function summary(data: any) {
 async function flwGet(path: string) {
   try {
     const r = await fetch(`${FLW}${path}`, { headers: { Authorization: `Bearer ${FLW_SECRET_KEY}` } });
-    const j = await r.json();
-    const d = Array.isArray(j?.data) ? j.data.map((t: any) => `${t?.tx_ref}:${t?.status}:${t?.amount}`).join(",") : `${j?.data?.tx_ref}:${j?.data?.status}:${j?.data?.amount}:${j?.data?.currency}`;
-    console.log(`flw ${path.split("?")[0]} http=${r.status} status=${j?.status} msg=${j?.message} data=${d}`);
-    return j;
-  } catch (e) { console.log(`flw ${path.split("?")[0]} fetch_error ${e}`); return null; }
+    return await r.json();
+  } catch { return null; }
 }
 const belongsTo = (row: any, ref: unknown) =>
   typeof ref === "string" && (ref === row.tx_ref || ref.startsWith(row.tx_ref + "-"));
@@ -75,7 +72,6 @@ async function markPaidIfValid(row: any, tx: any) {
 async function reconcile(row: any, transactionId?: string) {
   if (!FLW_SECRET_KEY) return false;
   if (row.payment_status === "paid") return true;
-  console.log(`reconcile ${row.tx_ref} key=${FLW_SECRET_KEY.startsWith("FLWSECK_TEST") ? "test" : FLW_SECRET_KEY.startsWith("FLWSECK-") ? "live" : "unrecognised"} len=${FLW_SECRET_KEY.length} last=${row.last_tx_ref ?? "-"} tx=${transactionId ?? "-"}`);
   await db.from("epms_submissions").update({ last_checked_at: new Date().toISOString() }).eq("id", row.id);
   if (transactionId) {
     const v = await flwGet(`/transactions/${encodeURIComponent(transactionId)}/verify`);
