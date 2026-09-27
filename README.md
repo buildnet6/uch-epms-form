@@ -8,7 +8,7 @@ The full EPMS workbook (performance contract, 12 monthly reviews, 4 quarterly ap
 | Part | Location |
 |---|---|
 | The form (this site) | `index.html`, served by GitHub Pages |
-| Backend (save, edit link, payment check) | Supabase edge function `epms-form` in project `NEW_PROJECT_REF` (source in `supabase/functions/epms-form`) |
+| Backend (save, edit link, payment check) | Supabase edge function `epms-form` in project `myebhfkovfmltoirptrl` (source in `supabase/functions/epms-form`) |
 | Submissions | Supabase table `public.epms_submissions` (view: `epms_submissions_overview`) |
 | Workbook filler | `kit/fill_epms.py` + `kit/blank_master.xlsx` |
 
@@ -20,7 +20,7 @@ The full EPMS workbook (performance contract, 12 monthly reviews, 4 quarterly ap
    - `FLW_SECRET_KEY` = your Flutterwave secret key (`FLWSECK-...`)
    - `FLW_SECRET_HASH` = any long random phrase you choose
 4. **Flutterwave webhook** (backup confirmation): Flutterwave dashboard > Settings > Webhooks
-   - URL: `https://NEW_PROJECT_REF.supabase.co/functions/v1/epms-form/webhook`
+   - URL: `https://myebhfkovfmltoirptrl.supabase.co/functions/v1/epms-form/webhook`
    - Secret hash: the same phrase as `FLW_SECRET_HASH`
 5. Optional: add secret `EPMS_ALLOWED_ORIGIN` = your Pages address (e.g. `https://yourname.github.io`) so only your form can call the backend.
 
