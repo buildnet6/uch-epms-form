@@ -453,7 +453,7 @@ function renderReview(){
   $("checks").innerHTML=h; $("out").textContent=toText(d); 
 }
 // ---------- backend + payment ----------
-const CONFIG = { FUNCTION_URL: "__FUNCTION_URL__", FLW_PUBLIC_KEY: "__FLW_PUBLIC_KEY__", PRICE: 12400 };
+const CONFIG = { FUNCTION_URL: "https://myebhfkovfmltoirptrl.supabase.co/functions/v1/epms-form", FLW_PUBLIC_KEY: "FLWPUBK-c2f9860cfe93041c5a8de94d0744fae0-X", PRICE: 12400 };
 const TOKEN_KEY = "epms-token-" + YEAR;
 let paymentStatus = "unpaid", txRef = "", paymentsReady = null;
 const params = new URLSearchParams(location.search);
