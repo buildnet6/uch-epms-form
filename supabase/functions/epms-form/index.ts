@@ -1,14 +1,16 @@
-// EPMS details form backend
-// - save:   create or update a nurse's submission (identified by a private edit token)
-// - load:   fetch a submission by edit token (for the edit link)
-// - verify: confirm a Flutterwave payment server-side and mark the submission paid
-// - config: price and whether payments are switched on
-// - /webhook: Flutterwave webhook (backup confirmation if the browser closes early)
+// UCH Nurses EPMS form backend
+// - config:  price and whether payments are switched on
+// - save:    create or update a nurse's submission (identified by a private edit token)
+// - load:    fetch a submission by edit token (also re-checks an unconfirmed payment)
+// - start:   record the reference of a payment attempt just before checkout opens
+// - verify / check: confirm a Flutterwave payment server-side and mark the submission paid
+// - /webhook: optional Flutterwave webhook (not used while the Flutterwave account is shared)
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const PRICE = Number(Deno.env.get("EPMS_PRICE") ?? "12400");
+const PRICE = Number(Deno.env.get("EPMS_PRICE") ?? "1000");
 const CURRENCY = "NGN";
+const FLW = "https://api.flutterwave.com/v3";
 const FLW_SECRET_KEY = Deno.env.get("FLW_SECRET_KEY") ?? "";
 const FLW_SECRET_HASH = Deno.env.get("FLW_SECRET_HASH") ?? "";
 const ALLOWED_ORIGIN = Deno.env.get("EPMS_ALLOWED_ORIGIN") ?? "*";
@@ -40,20 +42,20 @@ function summary(data: any) {
   };
 }
 
-async function flwVerify(transactionId: string) {
-  const r = await fetch(`https://api.flutterwave.com/v3/transactions/${encodeURIComponent(transactionId)}/verify`, {
-    headers: { Authorization: `Bearer ${FLW_SECRET_KEY}` },
-  });
-  const body = await r.json().catch(() => ({}));
-  return body?.data ?? null;
+async function flwGet(path: string) {
+  try {
+    const r = await fetch(`${FLW}${path}`, { headers: { Authorization: `Bearer ${FLW_SECRET_KEY}` } });
+    return await r.json();
+  } catch { return null; }
 }
+const belongsTo = (row: any, ref: unknown) =>
+  typeof ref === "string" && (ref === row.tx_ref || ref.startsWith(row.tx_ref + "-"));
 
 async function markPaidIfValid(row: any, tx: any) {
   if (!tx) return { ok: false, reason: "not_found" };
-  const refOk = typeof tx.tx_ref === "string" && (tx.tx_ref === row.tx_ref || tx.tx_ref.startsWith(row.tx_ref + "-"));
-  const good = tx.status === "successful" && refOk &&
+  const good = tx.status === "successful" && belongsTo(row, tx.tx_ref) &&
     tx.currency === CURRENCY && Number(tx.amount) >= PRICE;
-  if (!good) return { ok: false, reason: "not_successful" };
+  if (!good) return { ok: false, reason: tx.status === "successful" ? "mismatch" : "pending" };
   if (row.payment_status !== "paid") {
     const { error } = await db.from("epms_submissions").update({
       payment_status: "paid", amount_paid: tx.amount, currency: tx.currency,
@@ -64,20 +66,52 @@ async function markPaidIfValid(row: any, tx: any) {
   return { ok: true };
 }
 
+// Look for a successful payment for this submission in every way we can:
+// 1) the transaction id the checkout returned, 2) the last attempt's reference,
+// 3) recent successful payments from the nurse's email carrying this submission's reference.
+async function reconcile(row: any, transactionId?: string) {
+  if (!FLW_SECRET_KEY) return false;
+  if (row.payment_status === "paid") return true;
+  await db.from("epms_submissions").update({ last_checked_at: new Date().toISOString() }).eq("id", row.id);
+  if (transactionId) {
+    const v = await flwGet(`/transactions/${encodeURIComponent(transactionId)}/verify`);
+    if ((await markPaidIfValid(row, v?.data)).ok) return true;
+  }
+  if (row.last_tx_ref) {
+    const v = await flwGet(`/transactions/verify_by_reference?tx_ref=${encodeURIComponent(row.last_tx_ref)}`);
+    if ((await markPaidIfValid(row, v?.data)).ok) return true;
+  }
+  if (row.email) {
+    const from = new Date(new Date(row.created_at).getTime() - 86_400_000).toISOString().slice(0, 10);
+    const list = await flwGet(`/transactions?customer_email=${encodeURIComponent(row.email)}&status=successful&from=${from}`);
+    for (const t of (list?.data ?? [])) {
+      if (belongsTo(row, t?.tx_ref)) {
+        const v = await flwGet(`/transactions/${encodeURIComponent(String(t.id))}/verify`);  // never trust a list entry alone
+        if ((await markPaidIfValid(row, v?.data)).ok) return true;
+      }
+    }
+  }
+  return false;
+}
+
+async function rowByToken(token: string) {
+  const { data } = await db.from("epms_submissions").select("*").eq("edit_token", token).maybeSingle();
+  return data;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
   const url = new URL(req.url);
 
-  // ---- Flutterwave webhook ----
   if (url.pathname.endsWith("/webhook")) {
     if (!FLW_SECRET_HASH || req.headers.get("verif-hash") !== FLW_SECRET_HASH) return json({ error: "unauthorized" }, 401);
     const evt = await req.json().catch(() => null);
     const txRef = evt?.data?.tx_ref; const txId = evt?.data?.id;
     if (!txRef || !txId || !FLW_SECRET_KEY) return json({ ok: true });
-    const baseRef = String(txRef).split("-").slice(0, 2).join("-");  // UCHEPMS25-<id>-<attempt> -> UCHEPMS25-<id>
+    const baseRef = String(txRef).split("-").slice(0, 2).join("-");
     const { data: row } = await db.from("epms_submissions").select("*").eq("tx_ref", baseRef).maybeSingle();
-    if (row) await markPaidIfValid(row, await flwVerify(String(txId)));  // never trust the webhook body alone
+    if (row) await reconcile(row, String(txId));
     return json({ ok: true });
   }
 
@@ -109,22 +143,34 @@ Deno.serve(async (req) => {
     return json({ token: row.edit_token, tx_ref: row.tx_ref, payment_status: row.payment_status });
   }
 
-  if (action === "load") {
+  if (action === "start") {
     if (!UUID.test(body.token ?? "")) return json({ error: "bad_token" }, 400);
-    const { data: row } = await db.from("epms_submissions")
-      .select("data, tx_ref, payment_status, updated_at").eq("edit_token", body.token).maybeSingle();
+    const row = await rowByToken(body.token);
     if (!row) return json({ error: "not_found" }, 404);
-    return json(row);
+    if (!belongsTo(row, body.attempt_ref) || String(body.attempt_ref).length > 80) return json({ error: "bad_ref" }, 400);
+    await db.from("epms_submissions").update({ last_tx_ref: body.attempt_ref }).eq("id", row.id);
+    return json({ ok: true });
   }
 
-  if (action === "verify") {
+  if (action === "load") {
+    if (!UUID.test(body.token ?? "")) return json({ error: "bad_token" }, 400);
+    const row = await rowByToken(body.token);
+    if (!row) return json({ error: "not_found" }, 404);
+    let status = row.payment_status;
+    if (status !== "paid" && (row.last_tx_ref || row.email)) {
+      if (await reconcile(row)) status = "paid";
+    }
+    return json({ data: row.data, tx_ref: row.tx_ref, payment_status: status, updated_at: row.updated_at });
+  }
+
+  if (action === "verify" || action === "check") {
     if (!FLW_SECRET_KEY) return json({ error: "payments_not_configured" }, 503);
-    if (!UUID.test(body.token ?? "") || !body.transaction_id) return json({ error: "bad_request" }, 400);
-    const { data: row } = await db.from("epms_submissions").select("*").eq("edit_token", body.token).maybeSingle();
+    if (!UUID.test(body.token ?? "")) return json({ error: "bad_request" }, 400);
+    const row = await rowByToken(body.token);
     if (!row) return json({ error: "not_found" }, 404);
     if (row.payment_status === "paid") return json({ payment_status: "paid" });
-    const res = await markPaidIfValid(row, await flwVerify(String(body.transaction_id)));
-    return json({ payment_status: res.ok ? "paid" : "unpaid", reason: res.ok ? undefined : res.reason });
+    const ok = await reconcile(row, body.transaction_id ? String(body.transaction_id) : undefined);
+    return json({ payment_status: ok ? "paid" : "unpaid" });
   }
 
   return json({ error: "unknown_action" }, 400);
