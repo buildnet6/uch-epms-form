@@ -137,6 +137,10 @@ pre.out{white-space:pre-wrap;word-break:break-word;background:var(--surface-2);b
 .banner.warn{background:var(--amber-soft);color:var(--amber-ink)}
 .btn.busy{opacity:.7;cursor:progress}
 [hidden]{display:none!important}
+.savebar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;color:var(--ink-2);padding-top:8px}
+.savebar .dot{width:9px;height:9px;border-radius:50%;background:var(--muted);flex:none}
+.savebar.ok .dot{background:var(--ok)} .savebar.wait .dot{background:var(--amber)} .savebar.off .dot{background:var(--danger)}
+.linkbtn{font:inherit;font-size:13px;font-weight:700;color:var(--green);background:none;border:0;padding:2px 0;text-decoration:underline;cursor:pointer}
 .steps button:disabled{opacity:.45;cursor:not-allowed}
 .warn-inline{color:var(--danger);font-size:14px;font-weight:600}
 footer.note{color:var(--muted);font-size:13px;margin-top:18px;text-align:center}
@@ -164,7 +168,9 @@ footer.note{color:var(--muted);font-size:13px;margin-top:18px;text-align:center}
     </div>
   </header>
 
-  <nav class="steps" aria-label="Form sections"><ol id="stepnav"></ol></nav>
+  <nav class="steps" aria-label="Form sections"><ol id="stepnav"></ol>
+    <div class="savebar" id="savebar"><span class="dot" id="save_dot"></span><span id="save_msg">Your answers are saved on this phone as you type.</span>
+      <button type="button" class="linkbtn" id="later_btn" hidden>Copy my continue-later link</button></div></nav>
 
   <form id="f" novalidate autocomplete="on">
 
@@ -318,12 +324,17 @@ const $ = id => document.getElementById(id);
 const TEXT_IDS = [...document.querySelectorAll('#f input[id]:not([type=search]):not([type=checkbox]):not(#kra_own):not(#edit_link), #f textarea[id]')].map(e=>e.id);
 
 // ---------- draft save (per device) ----------
-function saveDraft(){ try{ const v={}; TEXT_IDS.forEach(id=>v[id]=$(id).value); localStorage.setItem(KEY, JSON.stringify({v, kras:state.kras, months:state.months, step:state.step})); }catch(e){} }
-function loadDraft(){ try{ const d=JSON.parse(localStorage.getItem(KEY)||"null"); if(!d) return;
+let unsynced=false;
+function saveDraft(dirty=true){
+  if(dirty){ unsynced=true; if(typeof scheduleAutosave==="function") scheduleAutosave(); }
+  try{ const v={}; TEXT_IDS.forEach(id=>v[id]=$(id).value); localStorage.setItem(KEY, JSON.stringify({v, kras:state.kras, months:state.months, step:state.step, unsynced, token:(typeof token!=="undefined"?token:"")})); }catch(e){}
+}
+function loadDraft(){ try{ const d=JSON.parse(localStorage.getItem(KEY)||"null"); if(!d) return null; unsynced=!!d.unsynced;
   Object.entries(d.v||{}).forEach(([id,val])=>{ if($(id) && val!=null) $(id).value=val; });
   if(Array.isArray(d.kras)) state.kras=d.kras; if(Array.isArray(d.months)&&d.months.length===12) state.months=d.months;
   if(Number.isInteger(d.step)) state.step=Math.min(d.step,STEPS.length-1);
-}catch(e){} }
+  return d;
+}catch(e){ return null; } }
 
 // ---------- step navigation ----------
 function maxReachable(){ for(let i=0;i<5;i++){ if(!stepDone(i)) return i; } return STEPS.length-1; }
@@ -340,7 +351,7 @@ function show(i){
   $("next_btn").hidden = i===STEPS.length-1;
   if(i===4) renderMonths();
   if(i===6) renderReview();
-  renderNav(); saveDraft();
+  renderNav(); saveDraft(false);
   window.scrollTo({top:0,behavior:"instant" in window ? "instant":"auto"});
 }
 function requiredIn(i){ return [...document.querySelectorAll(`section[data-step="${i}"] [required]`)]; }
@@ -593,6 +604,33 @@ async function startPayment(){
     }
   });
 }
+// ---------- automatic online saving ----------
+let saveTimer=null, saving=false, savedAt=null;
+function setSaveBar(cls,msg){ const b=$("savebar"); b.className="savebar "+cls; $("save_msg").textContent=msg; $("later_btn").hidden=!token; }
+function scheduleAutosave(delay=3000){ clearTimeout(saveTimer); saveTimer=setTimeout(autosave,delay); if(stepDone(0)) setSaveBar("wait","Saving…"); }
+async function autosave(){
+  if(!stepDone(0)){ setSaveBar("","Your answers are saved on this phone. They'll also be saved online once 'About you' is complete."); return; }
+  if(saving){ scheduleAutosave(2000); return; }
+  if(!unsynced && token){ setSaveBar("ok", savedAt?`Saved online at ${savedAt}.`:"Saved online."); return; }
+  if(navigator.onLine===false){ setSaveBar("off","You're offline. Your answers are safe on this phone and will be saved online when your connection returns."); return; }
+  saving=true;
+  try{
+    const r=await api("save",{token:token||undefined,data:collect()});
+    rememberToken(r.token); txRef=r.tx_ref; if(r.payment_status==="paid") paymentStatus="paid";
+    unsynced=false; saveDraft(false);
+    savedAt=new Date().toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"});
+    setSaveBar("ok",`Saved online at ${savedAt}.`); renderPaidState();
+  }catch(e){
+    if(e.code==="not_found"){ token=""; try{localStorage.removeItem(TOKEN_KEY);}catch(_){} }
+    setSaveBar("off","Couldn't reach the server. Your answers are safe on this phone; we'll keep trying.");
+    clearTimeout(saveTimer); saveTimer=setTimeout(autosave,20000);
+  }finally{ saving=false; }
+}
+window.addEventListener("online",()=>autosave());
+window.addEventListener("offline",()=>setSaveBar("off","You're offline. Your answers are safe on this phone and will be saved online when your connection returns."));
+document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="hidden" && unsynced){ clearTimeout(saveTimer); autosave(); } });
+$("later_btn").onclick=async()=>{ try{ await navigator.clipboard.writeText(editLink()); setSaveBar("ok","Link copied. Open it any time, on any phone, to continue where you stopped."); }catch(e){ setSaveBar("ok","Your continue-later link: "+editLink()); } };
+
 function showPending(){
   setStatus("send_status","Your payment is still being confirmed by Flutterwave. You don't need to pay again. Your details are saved: open your private edit link below in a few minutes and it will show as confirmed.","");
   $("done_box").hidden=false; $("done_title").textContent="Payment being confirmed";
@@ -607,7 +645,7 @@ $("submit_btn").onclick=async()=>{
   try{
     const r=await api("save",{token:token||undefined,data:collect()});
     rememberToken(r.token); txRef=r.tx_ref; paymentStatus=r.payment_status;
-    renderPaidState(); saveDraft();
+    unsynced=false; renderPaidState(); saveDraft(false); setSaveBar("ok","Saved online.");
     if(paymentStatus==="paid"){ setStatus("send_status", wasPaid?"Your changes are saved.":"Saved.", "ok"); }
     else { busy(false); renderPaidState(); await startPayment(); }
   }catch(e){
@@ -623,12 +661,17 @@ $("reset_yes").onclick=()=>{ try{localStorage.removeItem(KEY);localStorage.remov
   $("reset_confirm").hidden=true; $("reset_btn").hidden=false; renderKraList(); renderPaidState(); show(0); };
 
 // ---------- start ----------
-loadDraft(); renderKraList(); show(state.step); renderPaidState();
+const draft=loadDraft(); renderKraList(); show(state.step); renderPaidState();
 api("config").then(c=>{ paymentsReady=!!c.payments_ready; if(c.price) CONFIG.PRICE=c.price; renderPaidState(); }).catch(()=>{});
 if(token){
-  api("load",{token}).then(r=>{ setFromData(r.data||{}); paymentStatus=r.payment_status; txRef=r.tx_ref; rememberToken(token); renderKraList(); show(state.step); renderPaidState(); saveDraft(); })
-  .catch(e=>{ if(e.code==="not_found"||e.code==="bad_token"){ token=""; try{localStorage.removeItem(TOKEN_KEY);}catch(_){} renderPaidState(); } });
-}
+  api("load",{token}).then(r=>{
+    const keepLocal = draft && draft.unsynced && draft.token===token;
+    if(!keepLocal){ setFromData(r.data||{}); unsynced=false; }
+    paymentStatus=r.payment_status; txRef=r.tx_ref; rememberToken(token); renderKraList(); show(state.step); renderPaidState(); saveDraft(false);
+    if(keepLocal) autosave(); else setSaveBar("ok","Your saved answers are loaded. Changes save online automatically.");
+  })
+  .catch(e=>{ if(e.code==="not_found"||e.code==="bad_token"){ token=""; try{localStorage.removeItem(TOKEN_KEY);}catch(_){} renderPaidState(); } else setSaveBar("off","Couldn't reach the server. Your answers on this phone are safe."); });
+} else if(unsynced) scheduleAutosave(500);
 })();
 </script>
 
