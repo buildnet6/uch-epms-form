@@ -242,7 +242,7 @@ def fill(data, out_path):
     for qi, name in enumerate(q_sheets):
         ws = wb[name]
         ws['D5'] = f"{periods[qi][0]}/{year} TO {periods[qi][1]}/{year}"
-        ws.column_dimensions['A'].width = 15; ws.column_dimensions['B'].width = 36
+        ws.column_dimensions['A'].width = 19; ws.column_dimensions['B'].width = 36
         for a, v in qinfo.items():
             ws[a] = v or None
             ws[a].alignment = Alignment(wrap_text=True, vertical='center', horizontal=ws[a].alignment.horizontal)

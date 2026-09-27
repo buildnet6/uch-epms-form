@@ -121,7 +121,10 @@ def autofit(path_in, path_out, reset_rows=None):
                         wrap = True
                 if not wrap:
                     continue
-                broken = break_text(text, font, mult, avail)
+                if " " not in text.strip() and "\n" not in text:
+                    broken = [text]          # a single code or number: never split it
+                else:
+                    broken = break_text(text, font, mult, avail)
                 lines = len(broken)
                 # hard line breaks so the full text shows in every viewer,
                 # even ones that ignore Excel's wrap-text setting
