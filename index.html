@@ -338,10 +338,10 @@ function loadDraft(){ try{ const d=JSON.parse(localStorage.getItem(KEY)||"null")
 
 // ---------- step navigation ----------
 function maxReachable(){ for(let i=0;i<5;i++){ if(!stepDone(i)) return i; } return STEPS.length-1; }
-function renderNav(){
+function renderNav(scroll=true){
   const reach=Math.max(maxReachable(), state.step);
   $("stepnav").innerHTML = STEPS.map((s,i)=>`<li><button type="button" data-go="${i}" ${i===state.step?'aria-current="step"':''} ${i>reach?'disabled title="Finish the earlier steps first"':''} class="${stepDone(i)&&i!==state.step?'done':''}"><span class="n">${stepDone(i)&&i!==state.step?'✓':i+1}</span>${s}</button></li>`).join("");
-  const cur = $("stepnav").querySelector('[aria-current="step"]'); if(cur) cur.scrollIntoView({block:"nearest",inline:"nearest"});
+  const cur = $("stepnav").querySelector('[aria-current="step"]'); if(cur && scroll) cur.scrollIntoView({block:"nearest",inline:"nearest"});
 }
 function show(i){
   if(i>maxReachable() && i>state.step){ i=maxReachable(); }
@@ -372,7 +372,7 @@ function validate(i){
 $("next_btn").onclick=()=>{ if(validate(state.step)) show(state.step+1); };
 $("back_btn").onclick=()=>show(Math.max(0,state.step-1));
 $("stepnav").addEventListener("click",e=>{ const b=e.target.closest("[data-go]"); if(!b||b.disabled) return; const g=Number(b.dataset.go); if(g>state.step){ for(let i=state.step;i<g;i++){ if(!validate(i)){ show(i); return; } } } show(g); });
-document.addEventListener("input",e=>{ if(e.target.classList.contains("invalid")&&e.target.value.trim()) e.target.classList.remove("invalid"); if(TEXT_IDS.includes(e.target.id)) saveDraft(); });
+document.addEventListener("input",e=>{ if(e.target.classList.contains("invalid")&&e.target.value.trim()) e.target.classList.remove("invalid"); if(TEXT_IDS.includes(e.target.id)){ saveDraft(); renderNav(false); } });
 $("f").addEventListener("submit",e=>e.preventDefault());
 
 // ---------- tasks ----------
