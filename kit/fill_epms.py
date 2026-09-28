@@ -8,6 +8,40 @@ from copy import copy
 from datetime import datetime
 import openpyxl
 from openpyxl.styles import Alignment
+from openpyxl.drawing.image import Image as XLImage
+from openpyxl.drawing.spreadsheet_drawing import TwoCellAnchor, AnchorMarker
+from openpyxl.utils.units import pixels_to_EMU
+from openpyxl.utils import column_index_from_string, get_column_letter
+
+
+def place_signature(ws, sig_path, cell, height_px, x_off_px=8, y_off_px=4):
+    """Put the appraisee's own signature image in a signature box (never anyone else's).
+    Anchored at both corners so later row-height changes cannot move it out of its box."""
+    img = XLImage(sig_path)
+    ratio = img.width / img.height
+    img.height = height_px; img.width = int(height_px * ratio)
+    col0 = column_index_from_string(re.match(r"[A-Z]+", cell).group())
+    row0 = int(re.search(r"\d+", cell).group())
+    default_w = ws.sheet_format.defaultColWidth or 8.43
+    default_h = ws.sheet_format.defaultRowHeight or 15
+    def col_px(c):
+        d = ws.column_dimensions.get(get_column_letter(c))
+        return int(((d.width if d is not None and d.width else default_w) * 7) + 5)
+    def row_px(r):
+        h = ws.row_dimensions[r].height or default_h
+        return int(h * 96 / 72)
+    # walk right / down from the top-left cell to find where the picture ends
+    c, remaining = col0, x_off_px + img.width
+    while remaining > col_px(c):
+        remaining -= col_px(c); c += 1
+    r, remaining_r = row0, y_off_px + img.height
+    while remaining_r > row_px(r):
+        remaining_r -= row_px(r); r += 1
+    anchor = TwoCellAnchor(editAs="oneCell")
+    anchor._from = AnchorMarker(col=col0 - 1, colOff=pixels_to_EMU(x_off_px), row=row0 - 1, rowOff=pixels_to_EMU(y_off_px))
+    anchor.to = AnchorMarker(col=c - 1, colOff=pixels_to_EMU(remaining), row=r - 1, rowOff=pixels_to_EMU(remaining_r))
+    img.anchor = anchor
+    ws.add_image(img)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE = os.path.join(HERE, 'blank_master.xlsx')
@@ -149,7 +183,7 @@ def pick_objectives(month_rows):
     return out
 
 
-def fill(data, out_path):
+def fill(data, out_path, signature=None):
     year = int(data.get('year') or 2025)
     emp, sup, cso = data.get('employee', {}), data.get('supervisor', {}), data.get('countersigning_officer', {})
     extras = data.get('extras', {}) or {}
@@ -286,6 +320,22 @@ def fill(data, out_path):
         ws['C25'] = '=SUM(C19:C24)'
         reset[name] = (5, 7, 8, 10, 11, 13, 14) + tuple(range(19, 25))
 
+    # appraisee signature (only when the nurse has supplied her own signature image)
+    if signature:
+        # give every row an explicit height so no program re-computes positions differently
+        for ws in wb.worksheets:
+            dh = ws.sheet_format.defaultRowHeight or 15
+            for r in range(1, ws.max_row + 1):
+                if ws.row_dimensions[r].height is None:
+                    ws.row_dimensions[r].height = dh
+        place_signature(pms, signature, 'C124', 54)
+        for mi in range(12):
+            ws = wb[month_sheets[mi]]
+            ws.row_dimensions[42].height = 48
+            place_signature(ws, signature, 'B42', 56)
+        for name in q_sheets:
+            place_signature(wb[name], signature, 'C59', 54)
+
     stage = out_path + '.stage.xlsx'
     wb.save(stage)
     sys.path.insert(0, HERE)
@@ -306,11 +356,12 @@ if __name__ == '__main__':
     ap = argparse.ArgumentParser()
     ap.add_argument('files', nargs='+')
     ap.add_argument('--out', default='out')
+    ap.add_argument('--signature', default=None, help='PNG of the appraisee\'s own signature (transparent background)')
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
     for f in a.files:
         d = json.load(open(f))
         d = d.get('data', d)
         p = os.path.join(a.out, out_name(d))
-        notes = fill(d, p)
+        notes = fill(d, p, a.signature)
         print(json.dumps({'file': p, 'notes': notes}))
