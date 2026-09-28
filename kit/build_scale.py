@@ -25,6 +25,7 @@ for (code, text, *_), r in zip(KRAS, rows):
     if unit == '%':
         pct = lambda x: x * 100 if x is not None and x <= 1 and all((n or 0) >= 1 for n in nb[1:5]) else x
         s = dict(kind='pct', max=100, target=pct(num(M)), lower=lower)
+        if num(M) is not None and 0 < num(M) <= 1: s['frac'] = True   # the contract writes this target as a decimal: 1 = 100%
     elif unit == '#':
         s = dict(kind='count', target=num(M), lower=lower)
     else:
