@@ -345,6 +345,22 @@ def fill(data, out_path, signature=None):
     return notes
 
 
+def signature_from_data(data, path):
+    """Write the nurse's approved signature (a PNG data URL saved by the form) to `path`; None if there isn't one."""
+    import base64
+    sig = data.get('signature') or {}
+    png = sig.get('png') if isinstance(sig, dict) and sig.get('approved') else None
+    prefix = 'data:image/png;base64,'
+    if not (isinstance(png, str) and png.startswith(prefix)):
+        return None
+    raw = base64.b64decode(png[len(prefix):])
+    if not raw.startswith(b'\x89PNG'):
+        return None
+    with open(path, 'wb') as fh:
+        fh.write(raw)
+    return path
+
+
 def out_name(data):
     e = data.get('employee', {})
     n = '_'.join(x for x in [e.get('surname'), e.get('first_name')] if x) or 'Nurse'
@@ -363,5 +379,8 @@ if __name__ == '__main__':
         d = json.load(open(f))
         d = d.get('data', d)
         p = os.path.join(a.out, out_name(d))
-        notes = fill(d, p, a.signature)
-        print(json.dumps({'file': p, 'notes': notes}))
+        sig = a.signature or signature_from_data(d, p + '.signature.png')
+        notes = fill(d, p, sig)
+        if sig and sig != a.signature:
+            os.remove(sig)
+        print(json.dumps({'file': p, 'signed': bool(sig), 'notes': notes}))

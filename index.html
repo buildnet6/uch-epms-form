@@ -146,6 +146,29 @@ pre.out{white-space:pre-wrap;word-break:break-word;background:var(--surface-2);b
 .banner{background:var(--green-soft);border-radius:10px;padding:10px 14px;font-size:14.5px;font-weight:600}
 .banner.warn{background:var(--amber-soft);color:var(--amber-ink)}
 .btn.busy{opacity:.7;cursor:progress}
+.sigcard{margin-top:22px;border:2px solid var(--line);border-radius:12px;padding:16px;display:grid;gap:12px}
+.sigcard.approved{border-color:var(--ok);background:var(--green-soft)}
+.sigcard h3{margin:0;font-family:var(--serif);font-size:19px}
+.sigtabs{display:flex;gap:6px;flex-wrap:wrap}
+.sigtabs .btn[aria-pressed="true"]{background:var(--green);border-color:var(--green);color:var(--green-ink)}
+.sigtips{margin:0;padding-left:20px;font-size:14px;color:var(--ink-2);display:grid;gap:2px}
+.sigpad{width:100%;height:180px;background:#fff;border:1.5px dashed var(--line);border-radius:10px;touch-action:none;display:block}
+.sigfile{font:inherit;font-size:14px}
+.sigpreview{display:grid;gap:10px}
+.sigbig{background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px;display:flex;justify-content:center;
+  background-image:linear-gradient(45deg,#f1f1f1 25%,transparent 25%),linear-gradient(-45deg,#f1f1f1 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#f1f1f1 75%),linear-gradient(-45deg,transparent 75%,#f1f1f1 75%);
+  background-size:16px 16px;background-position:0 0,0 8px,8px -8px,-8px 0}
+.sigbig img{max-width:100%;max-height:160px}
+.mockbox{display:grid;grid-template-columns:38% 62%;border:2px solid #222;background:#fff;color:#111;font-family:Carlito,Calibri,Arial,sans-serif}
+.mockbox .lbl{background:#FFC000;display:flex;align-items:center;justify-content:center;text-align:center;font-weight:700;font-size:14px;padding:8px;border-right:1.5px solid #222}
+.mockbox .lbl.g{background:#548235;color:#fff}
+.mockbox .cell{height:64px;display:flex;align-items:center;padding:4px 10px}
+.mockbox .cell img{max-height:56px;max-width:100%}
+.mockcap{font-size:12.5px;color:var(--muted);margin:-6px 0 0}
+.sigctl{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.sigctl label{font-size:14px;display:flex;gap:8px;align-items:center}
+.sigctl input[type=range]{width:150px}
+.sigok{font-weight:700;color:var(--ok)}
 [hidden]{display:none!important}
 .savebar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;color:var(--ink-2);padding-top:8px}
 .savebar .dot{width:9px;height:9px;border-radius:50%;background:var(--muted);flex:none}
@@ -166,7 +189,7 @@ footer.note{color:var(--muted);font-size:13px;margin-top:18px;text-align:center}
     <div class="eyebrow" id="top_eyebrow">UCH Ibadan · Clinical Nursing · EPMS 2025</div>
     <div class="banner" id="edit_banner" hidden></div>
     <h1>Your EPMS details, in one short form</h1>
-    <p class="lede">Answer these questions once. We fill your full EPMS workbook for you (the performance contract, the 12 monthly reviews and the 4 quarterly appraisals) and email it to you within about 6 hours of payment. You sign it yourself before submitting it.</p>
+    <p class="lede">Answer these questions once. We fill your full EPMS workbook for you (the performance contract, the 12 monthly reviews and the 4 quarterly appraisals) and email it to you within about 6 hours of payment, together with a one-page summary. You can add your signature in step 6, or sign the printed workbook yourself.</p>
     <div class="need">
       <strong>Have these ready (about 10 minutes):</strong>
       <ul>
@@ -274,6 +297,55 @@ footer.note{color:var(--muted);font-size:13px;margin-top:18px;text-align:center}
       <div class="field"><label for="x_goals">Your goals for next year</label><textarea id="x_goals"></textarea></div>
       <div class="field"><label for="x_other">Anything else we should know</label><textarea id="x_other"></textarea></div>
     </div>
+
+    <div class="sigcard" id="sigcard">
+      <div><h3>Your signature <span class="opt">(optional)</span></h3>
+      <p class="hint" style="margin:6px 0 0">Add your signature here and we place it in every <b>Appraisee signature</b> box of your workbook: the performance contract, all 12 monthly reviews and all 4 quarterly appraisals. You'll see exactly how it looks before you approve it. Prefer to sign by hand? Skip this and sign the printed workbook yourself.</p></div>
+
+      <div id="sig_done" hidden>
+        <p class="sigok">&#10003; Signature approved. It will appear in your workbook like this:</p>
+        <div class="mockbox"><div class="lbl">APPRAISEE<br>SIGNATURE</div><div class="cell"><img id="sig_done_img" alt="Your approved signature"></div></div>
+        <div class="sigctl" style="margin-top:10px"><button type="button" class="btn small" id="sig_change">Change signature</button><button type="button" class="btn small ghost" id="sig_remove">Remove it (I'll sign by hand)</button></div>
+      </div>
+
+      <div id="sig_edit">
+        <div class="sigtabs" role="group" aria-label="How to add your signature">
+          <button type="button" class="btn small" id="sig_tab_up" aria-pressed="true">Upload a photo</button>
+          <button type="button" class="btn small" id="sig_tab_draw" aria-pressed="false">Draw it with your finger</button>
+        </div>
+        <div id="sig_up">
+          <ul class="sigtips">
+            <li>Sign on plain white paper with a dark pen (blue or black).</li>
+            <li>Take the photo straight on, in good light, with no shadow across it.</li>
+            <li>Let the signature fill most of the photo.</li>
+          </ul>
+          <p style="margin:10px 0 0"><label class="btn small" for="sig_file" style="display:inline-flex;align-items:center">Choose photo or take one</label>
+          <input class="sigfile" type="file" id="sig_file" accept="image/*" hidden></p>
+        </div>
+        <div id="sig_draw" hidden>
+          <canvas class="sigpad" id="sig_pad" aria-label="Signature pad: sign here with your finger or mouse"></canvas>
+          <div class="sigctl" style="margin-top:8px"><button type="button" class="btn small ghost" id="sig_pad_clear">Clear</button><button type="button" class="btn small" id="sig_pad_use">Use this drawing</button></div>
+        </div>
+        <div class="sigpreview" id="sig_preview" hidden>
+          <p style="margin:6px 0 0;font-weight:700">Preview: we removed the background</p>
+          <div class="sigbig"><img id="sig_img" alt="Your cleaned signature"></div>
+          <p style="margin:0;font-weight:700">How it will look in your workbook</p>
+          <div class="mockbox"><div class="lbl">APPRAISEE<br>SIGNATURE</div><div class="cell"><img id="sig_mock1" alt=""></div></div>
+          <p class="mockcap">Monthly review (all 12 months)</p>
+          <div class="mockbox"><div class="lbl g">Signature</div><div class="cell"><img id="sig_mock2" alt=""></div></div>
+          <p class="mockcap">Performance contract and the 4 quarterly appraisals</p>
+          <div class="sigctl">
+            <button type="button" class="btn small" id="sig_rot_l" title="Rotate left">&#8634; Rotate left</button>
+            <button type="button" class="btn small" id="sig_rot_r" title="Rotate right">&#8635; Rotate right</button>
+            <label id="sig_clean_wrap">Background clean-up <input type="range" id="sig_clean" min="0" max="100" value="50" aria-label="Background clean-up strength"></label>
+            <label>Ink <select id="sig_ink"><option value="blue">Blue</option><option value="black">Black</option></select></label>
+          </div>
+          <p class="hint" id="sig_hint" style="margin:0">If bits of the paper still show, move the slider right. If parts of your signature disappear, move it left.</p>
+          <div class="status bad" id="sig_warn" role="status" aria-live="polite"></div>
+          <div class="sigctl"><button type="button" class="btn primary" id="sig_approve">Yes, use this signature</button><button type="button" class="btn small ghost" id="sig_cancel">Start again</button></div>
+        </div>
+      </div>
+    </div>
   </section>
 
   <!-- 7 -->
@@ -317,7 +389,7 @@ footer.note{color:var(--muted);font-size:13px;margin-top:18px;text-align:center}
     <option value="Assistant Director of Nursing"><option value="Deputy Director of Nursing"><option value="Director of Nursing">
   </datalist>
 
-  <footer class="note">A service of BuildNET Digital Solutions. Questions? WhatsApp 08086579390 (messages only, no calls).<br>Your details are stored securely and used only to complete your EPMS forms. Payments are processed by Flutterwave; card details never touch this site. Signatures are not collected: you sign your workbook yourself.</footer>
+  <footer class="note">A service of BuildNET Digital Solutions. Questions? WhatsApp 08086579390 (messages only, no calls).<br>Your details are stored securely and used only to complete your EPMS forms. Payments are processed by Flutterwave; card details never touch this site. Your signature is optional: if you add one, it is used only in your own workbook.</footer>
 </div>
 
 <script>
@@ -325,11 +397,11 @@ footer.note{color:var(--muted);font-size:13px;margin-top:18px;text-align:center}
 const YEAR = "2025";
 const KRAS = [["1","Giving health information to mothers on appointments at ANC & PNC",90.0,"%",">90"],["1","Safe Delivery of babies. Prevention of infection",95.0,"%",100.0],["2","Cascade of PMS process",930.0,"#",">4"],["2","Compliance with ECM process",0.9,"%",">90"],["C3","Through the usage of the staggered appointment system in the clinics",0.8,"%",">80"],["C1","Provide, continuous Training for Staff,",4.0,"#",">4"],["C6","Coordination of the promotion exercise",1.0,"%",100.0],["C4","Capacity building attendance",12.0,"#",">12"],["BME001","Daily Cleaning of work environment and Weekly Disinfection of work tables",80.0,"%",90.0],["CTAGC001","To ensure proper service delivery by members of staff of the geriatric centre",0.95,"%",100.0],["CAAPD001","Task shifting to allied staff for initial assessments/ psychoeducation",90.0,"%",100.0],["CNOO1","Compliance with hand hygiene and tidying up of patients' bedside and environment",98.0,"%",100.0],["CNOO1","Disinfection of equipment and instrument, ensure optimal sterilization of surgical instrument in all theatres Biannual wash-down of wards and theatres",1.0,"%",100.0],["CNOO1","Prompt response to patients need through daily clinical nursing auditing, annual study block program, improved documentation and collaboration with other health care professionals",95.0,"%",100.0],["CMD001","conduct and monitoring of committee meetings and ensuring approved resolution",80.0,"%",80.0],["CLIPSY001","Conduct regular individual and psychological sessions based on patients needs",85.0,"%",100.0],["COMED001","Establish and maintain an outbreak alert and response system; Initiate investigation of 100% of reported outbreaks;",95.0,"%",100.0],["PAED001","Give health talks at Rallies special days for childhood conditions in the hospital, TV stations, Radio station, rallies and Social Media",4.0,"#",4.0],["PAED001","Run regular out-patient clinic, ensure emergengy ward service, ensure in-patient services and Provide consult for Paediatric patient when requested by other unit",90.0,"%",100.0],["PAED001","Send consult to paliative care department for all newly children diagnosed with cancer and ensure that all patient with severe pain have access to morphine",50.0,"%",">50"],["SURG001","Optimize Operating Theatre Scheduling to improve theatre utilization and reduce idle time",85.0,"%",">90"],["SURG001","Introduce Preventive Maintenance for Surgical Equipment to reduce equipment downtime",20.0,"%",">20"],["SURG001","Strengthen Clinical Documentation for better continuity of care and data quality",95.0,"%",100.0],["ED001","1) Monthly audit of critically ill patient encounters",40.0,"%",">50"],["ED001","2) ED admission and transfer registers",70.0,"%",">70"],["ED001","3) Bed management reports",95.0,"%",100.0],["ENT/ORL001","4. To draw up strategies in improving ENT, Head and Neck services",75.0,"%",">75"],["ENT/ORL001","5. To draw up strategies in ensuring public enlightenment and outreach of at least one ENT disease annually",4.0,"#",">4"],["ENV001","Routine Disinfection, Disinfestation, Deratization, Decontamination and Prevention of Stagnant water",95.0,"%",100.0],["DFM001","To schedule appointments for more patients to see family physicians at special interest clinics",50.0,"%",">50"],["DFM001","To reduce the wait time (time of arrival to doctor's consultation) of patients to not more than 30minutes",30.0,"minutes","<30"],["GAD001","Strengthen reporting system across units",10.0,"%",">10"],["HIM001","Engagement of trained health information professsionals",100.0,"%",100.0],["HPC001","To implement evidence based protocols for pain,nausea, dyspnoea and other symptoms ( WHO analgesic ladder, opioid titration charts)",90.0,"%",">90"],["HPC001","5) To conduct regular wards rounds with physicians, nurses, medical social workers, clinical psychologist, pharmacists and chaplains",100.0,"%",100.0],["HPC001","To develop a dashboard tracking symptom control, patient satisfaction, advance care planning documentation and hospital readmission",90.0,"%",">90"],["HSD001","1. To issue letters of authrization to the patient and prepare their bills and oversight on Emergency Medical Services, admission/discharge processes of the patients",1320.0,"#",">1320"],["HR001","Implement transparent recruitment and personnel administration processes in line with Public Service Rules and approved HR policies",90.0,"%",">95"],["HR001","Organize induction programmes, circulate orientation schedules and provide institutional policy and ethics training",95.0,"%",">95"],["ITD001","Creation and maintenance of Staff profile for Internet, Institutional emails, ID card and payslips",70.0,"%",80.0],["PRO001","QUICK RESPONSE TO PHONE CALLS",80.0,"%",">80"],["MED001","Implement structured admission-to-discharge care protocols Incorporate discharge planning in admission rounds",20.0,"%","<20"],["MED001","Develop and roll out condition-specific management SOP s. Severity score warning system",3.0,"#","<3"],["MLS001","To provide adequate signages directing patients to laboratories",90.0,"%",">90"],["MSSD001","Develop Standard Operating Procedures (SOPs) and clinical guidelines",90.0,"%",">90"],["MSSD001","Conduct patient education sessions",90.0,"%",100.0],["NM001","Streamlined appointment and scheduling system; multidisciplinary approach to patient management with referring departments",90.0,"%",">90"],["NURSED001","Strengthen partnerships with accredited clinical practice sites to ensure adequate student clinical exposure. Ensure all students have access to required clinical placement as at when due",100.0,"%",100.0],["O & G 001","Prompt decision making in delivery options for our antenatal patients",95.0,"%",">95"],["O & G 001","Surgical Procedures performed by the most senior Consultants and Resident Doctors on duty",80.0,"%",">80"],["OPHTHAL001","Clinic workflow optimization, appointment scheduling improvements, theatre efficiency monitoring, surgical waiting lists monitoring and management, referral pathways strengthening (through outreach programmes) and quarterly Clinical Governance Meetings",10.0,"%",">10"],["OPHTHAL001","Community eye screening and outreach programmes",12.0,"#",">12"],["OPHTHAL001","Strengthen administrative coordination through standardised workflows and digital record management; conduct periodic reviews of administrative processes",95.0,"%",">95"],["OMS001","Develop and Publish a Triage SOP: Draft and implement a Standard Operating Procedure (SOP) for the pre-consultation patient-sorting workflow, leveraging the Senior Registrars' JD mandate for \"general pre-Consultant organization of the clinic.\"",100.0,"%","<10"],["OMS001","Institute Monthly Trauma Audit Meetings: Integrate a specific \"Trauma Timeline Review\" into the monthly departmental meetings to audit case notes, ensuring 100% of interventions are documented and completed within the 24-hour window",100.0,"%",100.0],["OMS001","Design the OMS Pre-Operative Clearance Form: Create a standardized physical/digital checklist that mandates sign-offs for imaging (CT/Radiographs), blood cross-matching, and patient counseling (as per Senior Registrars' JD)",0.0,"#",0.0],["OMS001","Distribute the OMS Clinical SOP Manual: Compile and issue a pocket-sized or digital manual detailing the standard operating procedures for all minor oral surgeries and extractions to all resident doctors",100.0,"%",100.0],["OMS001","Develop the OMS IPC Audit Checklist",100.0,"%",100.0],["ORTHO001","Managing patients with musculoskeletal disease/disorders and trauma presented in the Hospital",60.0,"%",">60"],["ORTHO001","Supporting administrative processes in the Department",100.0,"%",100.0],["PERI001","Strengthen clinical teaching through structured clinical rotations, weekly operating room teaching, skills demonstrations, and periodic OSCE assessments",95.0,"%",">95"],["PHYSIO001","Ensure that physiotherapy services are accessible for 24hours daily 2.Ensure that the department is clean and in good order to receive patients 3. Ensure that equipment are functional and in good condition for evidence-based patient care",2000.0,"#",">2000"],["PHYSIO001","Daily health talk at outpatient clinics and antenatal clinic",5.0,"#",">5"],["PS001","Help to schedule multiple specialists appointment within a day for patient's conducive",90.0,"%",100.0],["PS001","Remind specialists and patient's of appointment",40.0,"minutes","<40"],["PS001","Ensure that all staff are abreast with the S. O. P of the Department",90.0,"%",100.0],["PSY001","Regular training of staff on quality care delivery",80.0,"%",">80"],["PSY001","To inform media houses, religious bodies and schools about planned mental health awareness",4.0,"#",">4"],["PHN001","Give reliable health information to all clients that attend the outpatient clinic in the hospital",90.0,"%",">90"],["PHN001","Document attendance",2500.0,"#",">2500"],["RAD001","Documentation of all images repeats adverse reaction and report errors",50.0,"%",">50"],["SOM001","Strengthen clinical teaching through structured clinical rotations, weekly bedside teaching, skills demonstrations, and periodic OSCE assessments",95.0,"%",">95"],["SON001","Conduct routine clinical supervision and placement compliance checks",100.0,"%",100.0],["SOHN001","Adequate monitoring and supervision of students on clinical posting",98.0,"%",">98"],["SDU001","Safe and conducive care for babies of staff and non-staff",80.0,"%",">80"],["SDU001","Establish a daily structured Patient Helper/Customer Assistance Desk",80.0,"%",">80"],["SMED001","Regular Health talks, Sending bulk SMS to all Staff on relevant Health issues,",4.0,"#",">4"],["TQM001","Statistical reports of various quality improvement projects",12.0,"#",">12"],["NEU001","Raising memo to seek Managementt's approval, writing reports of patients' treatments, minutes of departmental meetings and incident report",100.0,"%",100.0],["DA001","communication of appraisal timeline to departments, Monitor completion rates, Review and validate appraisal reports",80.0,"%",85.0],["MEDM001","Promotes Healthy collaboration with academic and non- academic staff",80.0,"%",">80"]];
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-const STEPS = ["About you","Supervisor","Counter-signing officer","Your tasks","Monthly results","Your year","Finish and pay"];
+const STEPS = ["About you","Supervisor","Counter-signing officer","Your tasks","Monthly results","Your year & signature","Finish and pay"];
 const ISSUE_CHIPS = ["Shortage of personnel","Poor power supply","High patient load","Shortage of consumables","Equipment breakdown","Network downtime","Target met"];
 const KEY = "epms-form-draft-" + YEAR;
 
-const state = { step:0, kras:[], months: MONTHS.map(()=>[{k:"",s:"",i:""},{k:"",s:"",i:""}]) };
+const state = { step:0, kras:[], months: MONTHS.map(()=>[{k:"",s:"",i:""},{k:"",s:"",i:""}]), signature:"" };
 const $ = id => document.getElementById(id);
 const TEXT_IDS = [...document.querySelectorAll('#f input[id]:not([type=search]):not([type=checkbox]):not(#kra_own):not(#edit_link), #f textarea[id]')].map(e=>e.id);
 
@@ -337,11 +409,11 @@ const TEXT_IDS = [...document.querySelectorAll('#f input[id]:not([type=search]):
 let unsynced=false;
 function saveDraft(dirty=true){
   if(dirty){ unsynced=true; if(typeof scheduleAutosave==="function") scheduleAutosave(); }
-  try{ const v={}; TEXT_IDS.forEach(id=>v[id]=$(id).value); localStorage.setItem(KEY, JSON.stringify({v, kras:state.kras, months:state.months, step:state.step, unsynced, token:(typeof token!=="undefined"?token:"")})); }catch(e){}
+  try{ const v={}; TEXT_IDS.forEach(id=>v[id]=$(id).value); localStorage.setItem(KEY, JSON.stringify({v, kras:state.kras, months:state.months, signature:state.signature, step:state.step, unsynced, token:(typeof token!=="undefined"?token:"")})); }catch(e){}
 }
 function loadDraft(){ try{ const d=JSON.parse(localStorage.getItem(KEY)||"null"); if(!d) return null; unsynced=!!d.unsynced;
   Object.entries(d.v||{}).forEach(([id,val])=>{ if($(id) && val!=null) $(id).value=val; });
-  if(Array.isArray(d.kras)) state.kras=d.kras; if(Array.isArray(d.months)&&d.months.length===12) state.months=d.months;
+  if(Array.isArray(d.kras)) state.kras=d.kras; if(Array.isArray(d.months)&&d.months.length===12) state.months=d.months; if(typeof d.signature==="string") state.signature=d.signature;
   if(Number.isInteger(d.step)) state.step=Math.min(d.step,STEPS.length-1);
   return d;
 }catch(e){ return null; } }
@@ -537,7 +609,8 @@ function collect(){
   return {form:"UCH-EPMS-DETAILS",version:1,year:Number(YEAR),employee:emp,supervisor:person("sup"),countersigning_officer:person("cso"),
     kras:state.kras.map(k=>({code:k.code,kra:k.text})),
     monthly:MONTHS.map((name,mi)=>({month:name,rows:state.months[mi].map(r=>({code:r.k?byId[r.k].code:"",kra:r.k?byId[r.k].text:"",output:r.s.trim(),issues:r.i.trim()}))})),
-    extras:{outstanding_performance:val("x_outstanding"),areas_of_improvement:val("x_improve"),training_needs:val("x_training"),future_goals:val("x_goals"),other_feedback:val("x_other")}};
+    extras:{outstanding_performance:val("x_outstanding"),areas_of_improvement:val("x_improve"),training_needs:val("x_training"),future_goals:val("x_goals"),other_feedback:val("x_other")},
+    signature: state.signature ? {png:state.signature, approved:true} : null};
 }
 function fullName(p){ return [p.surname,p.first_name,p.other_name].filter(Boolean).join(" "); }
 function toText(d){
@@ -551,7 +624,8 @@ function toText(d){
     L.push(`${m.month}:`); m.rows.forEach((r,i)=>{ if(!(r.kra||r.output||r.issues)) return; L.push(`  ${i+1}) [${r.code||"?"}] ${r.kra||"(no task chosen)"}`); L.push(`     Output Status: ${r.output||"-"} | Issues: ${r.issues||"-"}`); }); });
   L.push("");
   const x=d.extras; if(Object.values(x).some(Boolean)){ L.push("== ABOUT THE YEAR =="); line("Outstanding performance",x.outstanding_performance); line("Areas of improvement",x.areas_of_improvement); line("Training needs",x.training_needs); line("Future goals",x.future_goals); line("Other",x.other_feedback); L.push(""); }
-  L.push("----- DATA FOR THE EPMS FILL (please do not edit below this line) -----", JSON.stringify(d), "----- END -----");
+  L.push("== SIGNATURE ==", d.signature ? "Added and approved: placed in every appraisee signature box." : "Not added: sign the printed workbook yourself.", "");
+  L.push("----- DATA FOR THE EPMS FILL (please do not edit below this line) -----", JSON.stringify(d,(k,v)=>k==="signature"?(v?"(approved signature image)":null):v), "----- END -----");
   return L.join("\n");
 }
 function renderReview(){
@@ -562,6 +636,7 @@ function renderReview(){
   if(empty.length===12) miss.push("Monthly results: no month has a task and result yet");
   let h = miss.length ? `<div class="warn"><strong>Some details are missing.</strong> Please complete these before you submit:<ul>${miss.map(m=>`<li>${esc(m)}</li>`).join("")}</ul></div>` : `<div class="good"><strong>Everything required is filled in.</strong></div>`;
   if(empty.length && empty.length<12) h+=`<p class="hint">Months without figures: ${empty.join(", ")}. That's fine if you don't have them yet.</p>`;
+  h+= d.signature ? `<p class="hint">&#10003; Your signature is added and approved.</p>` : `<p class="hint">No signature added. That's fine: you can add one in step 6, or sign the printed workbook yourself.</p>`;
   $("checks").innerHTML=h; $("out").textContent=toText(d); 
 }
 // ---------- backend + payment ----------
@@ -611,7 +686,128 @@ function setFromData(d){
   state.kras=(d.kras||[]).map(k=>({code:k.code,text:k.kra}));
   state.months=MONTHS.map((_,mi)=>{ const m=(d.monthly||[])[mi]; return [0,1].map(ri=>{ const r=m&&m.rows&&m.rows[ri]; return r?{k:r.kra?(r.code+"|"+r.kra):"",s:r.output||"",i:r.issues||""}:{k:"",s:"",i:""}; }); });
   const x=d.extras||{}; $("x_outstanding").value=x.outstanding_performance||""; $("x_improve").value=x.areas_of_improvement||""; $("x_training").value=x.training_needs||""; $("x_goals").value=x.future_goals||""; $("x_other").value=x.other_feedback||"";
+  state.signature = (d.signature && d.signature.approved && typeof d.signature.png==="string") ? d.signature.png : "";
+  if(typeof renderSig==="function") renderSig();
 }
+
+
+// ---------- signature: upload or draw, clean the background, preview, approve ----------
+const SIG = { src:null, rot:0, drawn:false, png:"" };
+const INK = { blue:[28,36,130], black:[22,22,28] };
+function renderSig(){
+  const has=!!state.signature;
+  $("sig_done").hidden=!has; $("sig_edit").hidden=has; $("sigcard").classList.toggle("approved",has);
+  if(has) $("sig_done_img").src=state.signature;
+}
+function sigTab(which){
+  $("sig_tab_up").setAttribute("aria-pressed", which==="up"); $("sig_tab_draw").setAttribute("aria-pressed", which==="draw");
+  $("sig_up").hidden = which!=="up"; $("sig_draw").hidden = which!=="draw";
+  if(which==="draw") sizePad();
+}
+$("sig_tab_up").onclick=()=>sigTab("up"); $("sig_tab_draw").onclick=()=>sigTab("draw");
+
+function loadImage(file){ return new Promise((res,rej)=>{ const u=URL.createObjectURL(file); const im=new Image(); im.onload=()=>{res(im);}; im.onerror=rej; im.src=u; }); }
+$("sig_file").addEventListener("change", async e=>{
+  const f=e.target.files&&e.target.files[0]; if(!f) return;
+  $("sig_warn").textContent="";
+  try{ SIG.src=await loadImage(f); SIG.rot=0; SIG.drawn=false; $("sig_clean_wrap").hidden=false; $("sig_hint").hidden=false; processSig(); }
+  catch(err){ $("sig_warn").textContent="That file couldn't be opened as a picture. Try a JPG or PNG photo."; }
+  e.target.value="";
+});
+
+// rotate + scale the source into a working canvas
+function sourceCanvas(maxSide){
+  const im=SIG.src, w=im.naturalWidth||im.width, h=im.naturalHeight||im.height;
+  const k=Math.min(1, maxSide/Math.max(w,h)), sw=Math.round(w*k), sh=Math.round(h*k);
+  const turn=(SIG.rot%360+360)%360, swap=turn===90||turn===270;
+  const c=document.createElement("canvas"); c.width=swap?sh:sw; c.height=swap?sw:sh;
+  const x=c.getContext("2d"); x.fillStyle="#fff"; x.fillRect(0,0,c.width,c.height);
+  x.translate(c.width/2,c.height/2); x.rotate(turn*Math.PI/180); x.drawImage(im,-sw/2,-sh/2,sw,sh);
+  return c;
+}
+function processSig(){
+  if(!SIG.src) return;
+  const c=sourceCanvas(1400), W=c.width, H=c.height, ctx=c.getContext("2d");
+  const id=ctx.getImageData(0,0,W,H), px=id.data, N=W*H;
+  const L=new Float32Array(N), S=new Float32Array(N);
+  for(let i=0;i<N;i++){ const r=px[i*4],g=px[i*4+1],b=px[i*4+2], a=px[i*4+3]/255;
+    const rr=255-(255-r)*a, gg=255-(255-g)*a, bb=255-(255-b)*a;
+    L[i]=0.299*rr+0.587*gg+0.114*bb; S[i]=Math.max(rr,gg,bb)-Math.min(rr,gg,bb); }
+  let alpha=new Float32Array(N);
+  if(SIG.drawn){ for(let i=0;i<N;i++) alpha[i]=Math.min(1,(255-L[i])/200); }
+  else {
+    // paper brightness per block (70th percentile), then take the brightest neighbour so ink-heavy blocks don't count as paper
+    const B=Math.max(16,Math.round(Math.max(W,H)/40)), bw=Math.ceil(W/B), bh=Math.ceil(H/B), med=new Float32Array(bw*bh);
+    const hist=new Uint32Array(64);
+    for(let by=0;by<bh;by++) for(let bx=0;bx<bw;bx++){ hist.fill(0); let n=0;
+      for(let y=by*B;y<Math.min(H,(by+1)*B);y++) for(let x=bx*B;x<Math.min(W,(bx+1)*B);x++){ hist[Math.min(63,L[y*W+x]>>2)]++; n++; }
+      let acc=0,t=n*0.7,v=63; for(let k=0;k<64;k++){ acc+=hist[k]; if(acc>=t){ v=k; break; } } med[by*bw+bx]=v*4+2; }
+    const bg=new Float32Array(bw*bh);
+    for(let by=0;by<bh;by++) for(let bx=0;bx<bw;bx++){ let m=0; for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++){ const X=bx+dx,Y=by+dy; if(X>=0&&Y>=0&&X<bw&&Y<bh) m=Math.max(m,med[Y*bw+X]); } bg[by*bw+bx]=Math.max(m,60); }
+    const s=Number($("sig_clean").value)/100, thr=0.10+0.26*s;
+    for(let y=0;y<H;y++) for(let x=0;x<W;x++){ const i=y*W+x;
+      // bilinear paper level
+      const fx=Math.min(bw-1,Math.max(0,x/B-0.5)), fy=Math.min(bh-1,Math.max(0,y/B-0.5)), x0=Math.floor(fx), y0=Math.floor(fy), x1=Math.min(bw-1,x0+1), y1=Math.min(bh-1,y0+1), ax=fx-x0, ay=fy-y0;
+      const p=(bg[y0*bw+x0]*(1-ax)+bg[y0*bw+x1]*ax)*(1-ay)+(bg[y1*bw+x0]*(1-ax)+bg[y1*bw+x1]*ax)*ay;
+      let d=(p-L[i])/p; if(S[i]>45) d+=0.06;             // coloured ink gets a little help
+      alpha[i]=Math.max(0,Math.min(1,(d-thr)/(thr*0.9))); }
+  }
+  // drop specks and page-edge shadows: keep connected strokes only
+  const mask=new Uint8Array(N); let inkTotal=0; for(let i=0;i<N;i++){ if(alpha[i]>0.3){ mask[i]=1; inkTotal++; } }
+  const lab=new Int32Array(N), stack=new Int32Array(N), comps=[]; let cid=0;
+  for(let i=0;i<N;i++){ if(!mask[i]||lab[i]) continue; cid++; let sp=0; stack[sp++]=i; lab[i]=cid;
+    let area=0,minx=W,maxx=0,miny=H,maxy=0;
+    while(sp){ const j=stack[--sp]; area++; const x=j%W, y=(j/W)|0; if(x<minx)minx=x; if(x>maxx)maxx=x; if(y<miny)miny=y; if(y>maxy)maxy=y;
+      for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++){ const X=x+dx,Y=y+dy; if(X<0||Y<0||X>=W||Y>=H) continue; const k=Y*W+X; if(mask[k]&&!lab[k]){ lab[k]=cid; stack[sp++]=k; } } }
+    comps[cid]={area,minx,maxx,miny,maxy}; }
+  const minArea=Math.max(10, inkTotal*0.004), keep=new Uint8Array(cid+1); let kept=0;
+  for(let k=1;k<=cid;k++){ const q=comps[k]; const edge=q.minx<=1||q.miny<=1||q.maxx>=W-2||q.maxy>=H-2;
+    const huge=(q.maxx-q.minx)>W*0.85||(q.maxy-q.miny)>H*0.85;
+    if(SIG.drawn ? q.area>=3 : (q.area>=minArea && !(edge&&huge))){ keep[k]=1; kept+=q.area; } }
+  let minx=W,maxx=-1,miny=H,maxy=-1;
+  for(let i=0;i<N;i++){ const k=lab[i]; if(k&&keep[k]){ const x=i%W,y=(i/W)|0; if(x<minx)minx=x; if(x>maxx)maxx=x; if(y<miny)miny=y; if(y>maxy)maxy=y; } else if(alpha[i]>0 && !(k&&keep[k])){ /* faint pixel next to a kept stroke stays */ } }
+  if(maxx<0 || kept<40){ $("sig_warn").textContent="We couldn't find a signature in that picture. Try a clearer photo, move the slider left, or draw it instead."; $("sig_preview").hidden=false; setSigImgs(""); return; }
+  $("sig_warn").textContent = kept/N>0.35 ? "A lot of the photo is being read as ink. Move the slider right, or retake the photo on plain white paper." : "";
+  // soft edges: keep faint pixels that touch kept strokes
+  const out=new Float32Array(N);
+  for(let i=0;i<N;i++){ const k=lab[i]; if(k&&keep[k]) out[i]=alpha[i]; }
+  for(let y=miny;y<=maxy;y++) for(let x=minx;x<=maxx;x++){ const i=y*W+x; if(out[i]||!alpha[i]) continue;
+    for(let dy=-1;dy<=1&&!out[i];dy++) for(let dx=-1;dx<=1;dx++){ const X=x+dx,Y=y+dy; if(X<0||Y<0||X>=W||Y>=H) continue; const k=lab[Y*W+X]; if(k&&keep[k]){ out[i]=alpha[i]; break; } } }
+  const pad=Math.round(Math.max(maxx-minx,maxy-miny)*0.04)+4;
+  minx=Math.max(0,minx-pad); miny=Math.max(0,miny-pad); maxx=Math.min(W-1,maxx+pad); maxy=Math.min(H-1,maxy+pad);
+  const cw=maxx-minx+1, ch=maxy-miny+1, k2=Math.min(1,800/cw,320/ch);
+  const t=document.createElement("canvas"); t.width=cw; t.height=ch; const tx=t.getContext("2d"), td=tx.createImageData(cw,ch), ink=INK[$("sig_ink").value]||INK.blue;
+  for(let y=0;y<ch;y++) for(let x=0;x<cw;x++){ const a=out[(y+miny)*W+(x+minx)], o=(y*cw+x)*4; td.data[o]=ink[0]; td.data[o+1]=ink[1]; td.data[o+2]=ink[2]; td.data[o+3]=Math.round(a*255); }
+  tx.putImageData(td,0,0);
+  const f=document.createElement("canvas"); f.width=Math.max(1,Math.round(cw*k2)); f.height=Math.max(1,Math.round(ch*k2));
+  const fx2=f.getContext("2d"); fx2.imageSmoothingQuality="high"; fx2.drawImage(t,0,0,f.width,f.height);
+  SIG.png=f.toDataURL("image/png"); setSigImgs(SIG.png); $("sig_preview").hidden=false;
+  $("sig_preview").scrollIntoView({block:"nearest"});
+}
+function setSigImgs(src){ ["sig_img","sig_mock1","sig_mock2"].forEach(i=>{ const el=$(i); if(src){ el.src=src; el.hidden=false; } else { el.removeAttribute("src"); el.hidden=true; } }); $("sig_approve").disabled=!src; }
+let sigTimer=null; $("sig_clean").addEventListener("input",()=>{ clearTimeout(sigTimer); sigTimer=setTimeout(processSig,120); });
+$("sig_ink").addEventListener("change",processSig);
+$("sig_rot_l").onclick=()=>{ SIG.rot-=90; processSig(); }; $("sig_rot_r").onclick=()=>{ SIG.rot+=90; processSig(); };
+$("sig_approve").onclick=()=>{ if(!SIG.png) return; if(SIG.png.length>180000){ $("sig_warn").textContent="That signature image is too large. Please try again with a closer photo."; return; }
+  state.signature=SIG.png; renderSig(); saveDraft(); $("sigcard").scrollIntoView({block:"nearest"}); };
+$("sig_cancel").onclick=()=>{ SIG.src=null; SIG.png=""; $("sig_preview").hidden=true; setSigImgs(""); clearPad(); };
+$("sig_change").onclick=()=>{ $("sig_done").hidden=true; $("sig_edit").hidden=false; $("sig_preview").hidden=true; SIG.src=null; };
+$("sig_remove").onclick=()=>{ state.signature=""; SIG.src=null; $("sig_preview").hidden=true; renderSig(); saveDraft(); };
+
+// finger / mouse drawing
+const pad=$("sig_pad"); let pctx=null, drawing=false, drewSomething=false, last=null;
+function sizePad(){ const r=pad.getBoundingClientRect(); if(!r.width) return; const dpr=window.devicePixelRatio||1;
+  pad.width=Math.round(r.width*dpr); pad.height=Math.round(r.height*dpr); pctx=pad.getContext("2d");
+  pctx.fillStyle="#fff"; pctx.fillRect(0,0,pad.width,pad.height); pctx.lineCap="round"; pctx.lineJoin="round"; pctx.strokeStyle="#111"; pctx.lineWidth=2.6*dpr; drewSomething=false; }
+function clearPad(){ if(pctx) sizePad(); }
+function ptr(e){ const r=pad.getBoundingClientRect(), dpr=pad.width/r.width; return [(e.clientX-r.left)*dpr,(e.clientY-r.top)*dpr]; }
+pad.addEventListener("pointerdown",e=>{ if(!pctx) sizePad(); drawing=true; last=ptr(e); pad.setPointerCapture(e.pointerId); pctx.beginPath(); pctx.arc(last[0],last[1],pctx.lineWidth/2,0,7); pctx.fillStyle="#111"; pctx.fill(); drewSomething=true; });
+pad.addEventListener("pointermove",e=>{ if(!drawing) return; const p=ptr(e); pctx.beginPath(); pctx.moveTo(last[0],last[1]); pctx.lineTo(p[0],p[1]); pctx.stroke(); last=p; });
+["pointerup","pointercancel","pointerleave"].forEach(ev=>pad.addEventListener(ev,()=>{ drawing=false; }));
+$("sig_pad_clear").onclick=clearPad;
+$("sig_pad_use").onclick=()=>{ if(!drewSomething){ $("sig_warn").textContent="Sign in the white box first."; $("sig_preview").hidden=false; setSigImgs(""); return; }
+  const im=new Image(); im.onload=()=>{ SIG.src=im; SIG.rot=0; SIG.drawn=true; $("sig_clean_wrap").hidden=true; $("sig_hint").hidden=true; $("sig_warn").textContent=""; processSig(); }; im.src=pad.toDataURL("image/png"); };
+renderSig();
 
 function firstIncompleteStep(){ for(const i of [0,1,2,3,4]){ if(!stepDone(i)) return i; } return -1; }
 
@@ -724,7 +920,7 @@ $("reset_yes").onclick=()=>{ try{localStorage.removeItem(KEY);localStorage.remov
   $("reset_confirm").hidden=true; $("reset_btn").hidden=false; renderKraList(); renderPaidState(); show(0); };
 
 // ---------- start ----------
-const draft=loadDraft(); renderKraList(); show(state.step); renderPaidState();
+const draft=loadDraft(); renderKraList(); renderSig(); show(state.step); renderPaidState();
 api("config").then(c=>{ paymentsReady=!!c.payments_ready; if(c.price) CONFIG.PRICE=c.price; renderPaidState(); }).catch(()=>{});
 if(token){
   api("load",{token}).then(r=>{

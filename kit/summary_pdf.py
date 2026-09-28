@@ -326,12 +326,13 @@ if __name__ == '__main__':
     ap = argparse.ArgumentParser()
     ap.add_argument('files', nargs='+')
     ap.add_argument('--out', default='out')
-    ap.add_argument('--signed', action='store_true', help="the workbook already carries the nurse's signature")
+    ap.add_argument('--signed', action='store_true', help="the workbook carries a signature supplied outside the form")
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
     for f in a.files:
         d = json.load(open(f))
-        d['_signed'] = a.signed
+        d = d.get('data', d)
+        d['_signed'] = a.signed or bool((d.get('signature') or {}).get('approved'))
         p = os.path.join(a.out, summary_name(d))
         summary(d, p)
         print('wrote', p)

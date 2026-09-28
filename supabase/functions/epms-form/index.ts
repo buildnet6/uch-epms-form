@@ -1,6 +1,7 @@
 // UCH Nurses EPMS form backend
 // - config:  price and whether payments are switched on
-// - save:    create or update a nurse's submission (identified by a private edit token)
+// - save:    create or update a nurse's submission (identified by a private edit token);
+//            an optional approved signature (small PNG) travels inside the submission
 // - load:    fetch a submission by edit token (also re-checks an unconfirmed payment)
 // - start:   record the reference of a payment attempt just before checkout opens
 // - verify / check: confirm a Flutterwave payment server-side and mark the submission paid
@@ -14,7 +15,8 @@ const FLW = "https://api.flutterwave.com/v3";
 const FLW_SECRET_KEY = Deno.env.get("FLW_SECRET_KEY") ?? "";
 const FLW_SECRET_HASH = Deno.env.get("FLW_SECRET_HASH") ?? "";
 const ALLOWED_ORIGIN = Deno.env.get("EPMS_ALLOWED_ORIGIN") ?? "*";
-const MAX_BYTES = 200_000;
+const MAX_BYTES = 320_000;
+const MAX_SIG = 200_000;   // approved signature: a small transparent PNG as a data URL
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const db = createClient(
@@ -128,6 +130,11 @@ Deno.serve(async (req) => {
   if (action === "save") {
     const data = body.data;
     if (!data || typeof data !== "object" || data.form !== "UCH-EPMS-DETAILS") return json({ error: "bad_data" }, 400);
+    // keep only a well-formed, approved PNG signature; drop anything else
+    const sig = data.signature;
+    const okSig = sig && typeof sig === "object" && sig.approved === true && typeof sig.png === "string" &&
+      sig.png.length <= MAX_SIG && /^data:image\/png;base64,[A-Za-z0-9+\/=]+$/.test(sig.png);
+    data.signature = okSig ? { png: sig.png, approved: true } : null;
     const fields = { ...summary(data), data };
     if (body.token) {
       if (!UUID.test(body.token)) return json({ error: "bad_token" }, 400);
