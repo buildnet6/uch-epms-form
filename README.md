@@ -11,6 +11,7 @@ The full EPMS workbook (performance contract, 12 monthly reviews, 4 quarterly ap
 | Backend (save, edit link, payment check) | Supabase edge function `epms-form` in project `myebhfkovfmltoirptrl` (source in `supabase/functions/epms-form`) |
 | Submissions | Supabase table `public.epms_submissions` (view: `epms_submissions_overview`) |
 | Workbook filler | `kit/fill_epms.py` + `kit/blank_master.xlsx` |
+| One-page summary PDF | `kit/summary_pdf.py` |
 
 ## One-time setup
 
@@ -38,6 +39,7 @@ select id, data from public.epms_submissions where payment_status = 'paid' and f
 Save each `data` to `<id>.json`, then:
 ```bash
 python kit/fill_epms.py *.json --out out
+python kit/summary_pdf.py *.json --out out   # one-page summary for each nurse
 ```
 Then mark them done:
 ```sql
