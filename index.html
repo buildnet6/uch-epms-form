@@ -146,6 +146,10 @@ pre.out{white-space:pre-wrap;word-break:break-word;background:var(--surface-2);b
 .banner{background:var(--green-soft);border-radius:10px;padding:10px 14px;font-size:14.5px;font-weight:600}
 .banner.warn{background:var(--amber-soft);color:var(--amber-ink)}
 .btn.busy{opacity:.7;cursor:progress}
+.gate{border:2px solid var(--amber);background:var(--amber-soft);color:var(--amber-ink);border-radius:12px;padding:16px;margin:16px 0;display:grid;gap:10px}
+.gate h2{font-size:20px;color:var(--amber-ink)}
+.gate p{margin:0}
+.gated nav.steps,.gated #f,.gated #edit_banner{display:none!important}
 .sigcard{margin-top:22px;border:2px solid var(--line);border-radius:12px;padding:16px;display:grid;gap:12px}
 .sigcard.approved{border-color:var(--ok);background:var(--green-soft)}
 .sigcard h3{margin:0;font-family:var(--serif);font-size:19px}
@@ -188,6 +192,16 @@ footer.note{color:var(--muted);font-size:13px;margin-top:18px;text-align:center}
   <header class="top">
     <div class="eyebrow" id="top_eyebrow">UCH Ibadan · Clinical Nursing · EPMS 2025</div>
     <div class="banner" id="edit_banner" hidden></div>
+    <div class="gate" id="who_gate" hidden role="dialog" aria-labelledby="who_h">
+      <h2 id="who_h">Is this you?</h2>
+      <p>This phone or computer already has an EPMS form in progress for <b id="who_name">someone</b>.</p>
+      <div class="copy-row" style="display:flex;gap:8px;flex-wrap:wrap">
+        <button type="button" class="btn primary" id="who_me">Yes, that's me. Continue</button>
+        <button type="button" class="btn" id="who_new">No, start a new form for me</button>
+      </div>
+      <p class="hint" style="color:var(--amber-ink)">Starting a new form only clears it from this device. The other person's answers stay safely saved and they can still open them with their private edit link.</p>
+    </div>
+
     <h1>Your EPMS details, in one short form</h1>
     <p class="lede">Answer these questions once. We fill your full EPMS workbook for you (the performance contract, the 12 monthly reviews and the 4 quarterly appraisals) and email it to you within about 6 hours of payment, together with a one-page summary. You can add your signature in step 6, or sign the printed workbook yourself.</p>
     <div class="need">
@@ -916,21 +930,36 @@ $("copy_link").onclick=async()=>{ try{ await navigator.clipboard.writeText($("ed
 $("reset_btn").onclick=()=>{ $("reset_confirm").hidden=false; $("reset_btn").hidden=true; };
 $("reset_no").onclick=()=>{ $("reset_confirm").hidden=true; $("reset_btn").hidden=false; };
 $("reset_yes").onclick=()=>{ try{localStorage.removeItem(KEY);localStorage.removeItem(TOKEN_KEY);}catch(e){} token=""; paymentStatus="unpaid"; try{history.replaceState(null,"",location.pathname);}catch(e){}
-  TEXT_IDS.forEach(id=>$(id).value = id==="emp_department"?"Clinical Nursing":""); state.kras=[]; state.months=MONTHS.map(()=>[{k:"",s:"",i:""},{k:"",s:"",i:""}]); $("consent").checked=false;
+  TEXT_IDS.forEach(id=>$(id).value = id==="emp_department"?"Clinical Nursing":""); state.kras=[]; state.months=MONTHS.map(()=>[{k:"",s:"",i:""},{k:"",s:"",i:""}]); state.signature=""; renderSig(); $("consent").checked=false; unsynced=false;
   $("reset_confirm").hidden=true; $("reset_btn").hidden=false; renderKraList(); renderPaidState(); show(0); };
 
 // ---------- start ----------
-const draft=loadDraft(); renderKraList(); renderSig(); show(state.step); renderPaidState();
+function clearDevice(){ try{localStorage.removeItem(KEY);localStorage.removeItem(TOKEN_KEY);}catch(e){} token=""; paymentStatus="unpaid"; txRef=""; unsynced=false;
+  TEXT_IDS.forEach(id=>$(id).value = id==="emp_department"?"Clinical Nursing":""); state.step=0; state.kras=[]; state.months=MONTHS.map(()=>[{k:"",s:"",i:""},{k:"",s:"",i:""}]); state.signature="";
+  if($("consent")) $("consent").checked=false; }
+function boot(){
+  renderKraList(); renderSig(); show(state.step); renderPaidState();
+  if(token){
+    api("load",{token}).then(r=>{
+      const keepLocal = draft && draft.unsynced && draft.token===token;
+      if(!keepLocal){ setFromData(r.data||{}); unsynced=false; }
+      paymentStatus=r.payment_status; txRef=r.tx_ref; rememberToken(token); renderKraList(); show(state.step); renderPaidState(); saveDraft(false);
+      if(keepLocal) autosave(); else setSaveBar("ok","Your saved answers are loaded. Changes save online automatically.");
+    })
+    .catch(e=>{ if(e.code==="not_found"||e.code==="bad_token"){ token=""; try{localStorage.removeItem(TOKEN_KEY);}catch(_){} renderPaidState(); } else setSaveBar("off","Couldn't reach the server. Your answers on this phone are safe."); });
+  } else if(unsynced) scheduleAutosave(500);
+}
+const draft=loadDraft();
 api("config").then(c=>{ paymentsReady=!!c.payments_ready; if(c.price) CONFIG.PRICE=c.price; renderPaidState(); }).catch(()=>{});
-if(token){
-  api("load",{token}).then(r=>{
-    const keepLocal = draft && draft.unsynced && draft.token===token;
-    if(!keepLocal){ setFromData(r.data||{}); unsynced=false; }
-    paymentStatus=r.payment_status; txRef=r.tx_ref; rememberToken(token); renderKraList(); show(state.step); renderPaidState(); saveDraft(false);
-    if(keepLocal) autosave(); else setSaveBar("ok","Your saved answers are loaded. Changes save online automatically.");
-  })
-  .catch(e=>{ if(e.code==="not_found"||e.code==="bad_token"){ token=""; try{localStorage.removeItem(TOKEN_KEY);}catch(_){} renderPaidState(); } else setSaveBar("off","Couldn't reach the server. Your answers on this phone are safe."); });
-} else if(unsynced) scheduleAutosave(500);
+// Opened from the general link on a device that already holds someone's form: ask first, never show it silently.
+const fromPrivateLink = !!params.get("t");
+const savedName = draft && draft.v ? [draft.v.emp_first, draft.v.emp_surname].filter(x=>x&&x.trim()).join(" ").trim() : "";
+if(!fromPrivateLink && (token || savedName)){
+  $("who_name").textContent = savedName || "someone who used this device before";
+  $("who_gate").hidden=false; document.body.classList.add("gated");
+  $("who_me").onclick=()=>{ $("who_gate").hidden=true; document.body.classList.remove("gated"); boot(); };
+  $("who_new").onclick=()=>{ clearDevice(); $("who_gate").hidden=true; document.body.classList.remove("gated"); boot(); window.scrollTo(0,0); };
+} else boot();
 })();
 </script>
 
