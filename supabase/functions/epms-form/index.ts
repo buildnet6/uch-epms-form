@@ -6,7 +6,8 @@
 // - start:   record the reference of a payment attempt just before checkout opens
 // - verify / check: confirm a Flutterwave payment server-side and mark the submission paid
 // - /webhook: optional Flutterwave webhook (not used while the Flutterwave account is shared)
-// - admin:   owner's dashboard (passcode-protected, with sign-in lockout): overview, detail, set, recheck, create, change_key
+// - admin:   owner's dashboard (passcode-protected, with sign-in lockout): overview, detail (full record), set, recheck
+//            (deep Flutterwave search with findings), mark_paid / unmark_paid (manual confirmation), create, change_key
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -63,39 +64,78 @@ async function markPaidIfValid(row: any, tx: any) {
   if (row.payment_status !== "paid") {
     const { error } = await db.from("epms_submissions").update({
       payment_status: "paid", amount_paid: tx.amount, currency: tx.currency,
-      flw_transaction_id: String(tx.id), paid_at: new Date().toISOString(),
+      flw_transaction_id: String(tx.id), paid_at: new Date().toISOString(), payment_method: "flutterwave",
     }).eq("id", row.id);
     if (error) return { ok: false, reason: "db_error" };
   }
   return { ok: true };
 }
 
+// Every checkout attempt this nurse made (newest first), from the saved history plus the last one.
+function attemptRefs(row: any): string[] {
+  const refs = [...(Array.isArray(row.tx_refs) ? row.tx_refs : [])].reverse();
+  if (row.last_tx_ref) refs.unshift(row.last_tx_ref);
+  return [...new Set(refs.filter((r: unknown) => typeof r === "string" && belongsTo(row, r)))].slice(0, 25);
+}
+const txBrief = (t: any) => t && ({
+  id: t.id, tx_ref: t.tx_ref, status: t.status, amount: t.amount, currency: t.currency, at: t.created_at,
+  method: t.payment_type, email: t.customer?.email ?? null, name: t.customer?.name ?? null,
+  note: t.processor_response ?? null,
+});
+
 // Look for a successful payment for this submission in every way we can:
-// 1) the transaction id the checkout returned, 2) the last attempt's reference,
-// 3) recent successful payments from the nurse's email carrying this submission's reference.
-async function reconcile(row: any, transactionId?: string) {
-  if (!FLW_SECRET_KEY) return false;
-  if (row.payment_status === "paid") return true;
+// 1) the transaction id the checkout returned, 2) every checkout attempt's reference,
+// 3) recent payments from the nurse's email, 4) (admin check only) every Flutterwave payment
+//    since she started, matched on this submission's reference.
+// Returns whether she is paid and, for the admin, what Flutterwave holds for her.
+async function reconcile(row: any, transactionId?: string, deep = false): Promise<{ paid: boolean; found: any[]; searched: string[] }> {
+  const found: any[] = [], searched: string[] = [];
+  if (!FLW_SECRET_KEY) return { paid: row.payment_status === "paid", found, searched: ["payments not configured"] };
+  if (row.payment_status === "paid") return { paid: true, found, searched };
   await db.from("epms_submissions").update({ last_checked_at: new Date().toISOString() }).eq("id", row.id);
+  const seen = new Set<string>();
+  const consider = async (tx: any) => {
+    if (!tx || !belongsTo(row, tx.tx_ref)) return false;
+    if (!seen.has(String(tx.id))) { seen.add(String(tx.id)); found.push(txBrief(tx)); }
+    return (await markPaidIfValid(row, tx)).ok;
+  };
   if (transactionId) {
+    searched.push("checkout transaction id");
     const v = await flwGet(`/transactions/${encodeURIComponent(transactionId)}/verify`);
-    if ((await markPaidIfValid(row, v?.data)).ok) return true;
+    if (await consider(v?.data)) return { paid: true, found, searched };
   }
-  if (row.last_tx_ref) {
-    const v = await flwGet(`/transactions/verify_by_reference?tx_ref=${encodeURIComponent(row.last_tx_ref)}`);
-    if ((await markPaidIfValid(row, v?.data)).ok) return true;
+  const refs = attemptRefs(row);
+  searched.push(`${refs.length} checkout attempt(s)`);
+  for (const ref of refs) {
+    const v = await flwGet(`/transactions/verify_by_reference?tx_ref=${encodeURIComponent(ref)}`);
+    if (await consider(v?.data)) return { paid: true, found, searched };
   }
+  const from = new Date(new Date(row.created_at).getTime() - 86_400_000).toISOString().slice(0, 10);
+  const to = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
   if (row.email) {
-    const from = new Date(new Date(row.created_at).getTime() - 86_400_000).toISOString().slice(0, 10);
-    const list = await flwGet(`/transactions?customer_email=${encodeURIComponent(row.email)}&status=successful&from=${from}`);
+    searched.push("payments from " + row.email);
+    const list = await flwGet(`/transactions?customer_email=${encodeURIComponent(row.email)}&from=${from}&to=${to}`);
     for (const t of (list?.data ?? [])) {
-      if (belongsTo(row, t?.tx_ref)) {
-        const v = await flwGet(`/transactions/${encodeURIComponent(String(t.id))}/verify`);  // never trust a list entry alone
-        if ((await markPaidIfValid(row, v?.data)).ok) return true;
-      }
+      if (!belongsTo(row, t?.tx_ref)) continue;
+      const v = await flwGet(`/transactions/${encodeURIComponent(String(t.id))}/verify`);  // never trust a list entry alone
+      if (await consider(v?.data ?? t)) return { paid: true, found, searched };
     }
   }
-  return false;
+  if (deep) {
+    searched.push("all Flutterwave payments since she started");
+    for (let page = 1; page <= 20; page++) {
+      const list = await flwGet(`/transactions?from=${from}&to=${to}&page=${page}`);
+      const items = list?.data ?? [];
+      for (const t of items) {
+        if (!belongsTo(row, t?.tx_ref)) continue;
+        const v = t.status === "successful" ? await flwGet(`/transactions/${encodeURIComponent(String(t.id))}/verify`) : null;
+        if (await consider(v?.data ?? t)) return { paid: true, found, searched };
+      }
+      const pi = list?.meta?.page_info;
+      if (!items.length || !pi || page >= Number(pi.total_pages || 1)) break;
+    }
+  }
+  return { paid: false, found, searched };
 }
 
 async function rowByToken(token: string) {
@@ -141,7 +181,7 @@ const ADMIN_COLS = "id, edit_token, tx_ref, surname, first_name, ippis, phone, e
   "paid_at, filled_at, delivered_at, admin_note, complimentary, is_test, source, created_at, data_updated_at, last_tx_ref, last_checked_at, fill_notes, " +
   "designation:data->employee->>designation, other_name:data->employee->>other_name, monthly:data->monthly, kras:data->kras, extras:data->extras, " +
   "sup:data->supervisor, cso:data->countersigning_officer, sig_me:data->signature->approved, sig_sup:data->supervisor_signature->approved, " +
-  "sig_cso:data->cso_signature->approved";
+  "sig_cso:data->cso_signature->approved, tx_refs, payment_method, payment_note, archived";
 
 async function admin(req: Request, body: any) {
   const ip = clientIp(req);
@@ -158,11 +198,20 @@ async function admin(req: Request, body: any) {
     return json({ rows, events, price: PRICE, now: new Date().toISOString() });
   }
   if (op === "detail" && id) {
-    const { data } = await db.from("epms_submissions")
-      .select("id, sig_me:data->signature->>png, sig_sup:data->supervisor_signature->>png, sig_cso:data->cso_signature->>png")
-      .eq("id", id).maybeSingle();
-    const { data: events } = await db.from("epms_events").select("kind, detail, at").eq("submission_id", id).order("at", { ascending: false }).limit(100);
-    return json({ signatures: data, events });
+    // everything about one nurse: her full answers (with signatures), payment trail and activity
+    const { data: row } = await db.from("epms_submissions").select("*").eq("id", id).maybeSingle();
+    if (!row) return json({ error: "not_found" }, 404);
+    const { data: events } = await db.from("epms_events").select("kind, detail, at").eq("submission_id", id).order("at", { ascending: false }).limit(200);
+    const d = row.data ?? {};
+    const png = (s: any) => (s && typeof s.png === "string" ? s.png : null);
+    const { data: twins } = await db.from("epms_submissions")
+      .select("id, created_at, data_updated_at, payment_status, archived, kras:data->kras")
+      .neq("id", id).or(`ippis.eq.${String(row.ippis ?? "-").replace(/[^0-9A-Za-z]/g, "") || "-"},phone.eq.${String(row.phone ?? "-").replace(/[^0-9+]/g, "") || "-"}`);
+    return json({
+      data: { ...d, signature: undefined, supervisor_signature: undefined, cso_signature: undefined },
+      signatures: { sig_me: png(d.signature), sig_sup: png(d.supervisor_signature), sig_cso: png(d.cso_signature) },
+      attempts: attemptRefs(row), events, twins: twins ?? [],
+    });
   }
   if (op === "set" && id) {
     const f = body.fields ?? {}, up: Record<string, unknown> = {};
@@ -171,6 +220,7 @@ async function admin(req: Request, body: any) {
     if (typeof f.complimentary === "boolean") up.complimentary = f.complimentary;
     if (typeof f.is_test === "boolean") up.is_test = f.is_test;
     if (typeof f.admin_note === "string") up.admin_note = f.admin_note.slice(0, 2000) || null;
+    if (typeof f.archived === "boolean") up.archived = f.archived;
     if (!Object.keys(up).length) return json({ error: "nothing_to_change" }, 400);
     const { error } = await db.from("epms_submissions").update(up).eq("id", id);
     return error ? json({ error: "db_error" }, 500) : json({ ok: true });
@@ -178,8 +228,30 @@ async function admin(req: Request, body: any) {
   if (op === "recheck" && id) {
     const { data: row } = await db.from("epms_submissions").select("*").eq("id", id).maybeSingle();
     if (!row) return json({ error: "not_found" }, 404);
-    const ok = await reconcile(row);
-    return json({ payment_status: ok ? "paid" : "unpaid" });
+    const r = await reconcile(row, undefined, true);
+    return json({ payment_status: r.paid ? "paid" : "unpaid", found: r.found, searched: r.searched, configured: Boolean(FLW_SECRET_KEY) });
+  }
+  if (op === "mark_paid" && id) {
+    // the owner confirmed the money arrived another way (e.g. bank credit seen); recorded as a manual confirmation
+    const amount = Number(body.amount);
+    const note = clip(body.note, 300);
+    if (!Number.isFinite(amount) || amount <= 0 || amount > 1_000_000) return json({ error: "bad_amount" }, 400);
+    if (!note) return json({ error: "note_required" }, 400);
+    const { data: row } = await db.from("epms_submissions").select("payment_status").eq("id", id).maybeSingle();
+    if (!row) return json({ error: "not_found" }, 404);
+    if (row.payment_status === "paid") return json({ ok: true, already: true });
+    const { error } = await db.from("epms_submissions").update({ payment_status: "paid", amount_paid: amount, currency: CURRENCY,
+      paid_at: new Date().toISOString(), payment_method: "manual", payment_note: note, flw_transaction_id: null }).eq("id", id);
+    return error ? json({ error: "db_error" }, 500) : json({ ok: true });
+  }
+  if (op === "unmark_paid" && id) {
+    // only a manual confirmation can be undone here; a Flutterwave-verified payment stays
+    const { data: row } = await db.from("epms_submissions").select("payment_method").eq("id", id).maybeSingle();
+    if (!row) return json({ error: "not_found" }, 404);
+    if (row.payment_method !== "manual") return json({ error: "not_manual" }, 400);
+    const { error } = await db.from("epms_submissions").update({ payment_status: "unpaid", amount_paid: null, paid_at: null,
+      payment_method: null, payment_note: null }).eq("id", id);
+    return error ? json({ error: "db_error" }, 500) : json({ ok: true });
   }
   if (op === "change_key") {
     const nk = body.new_key;
@@ -266,7 +338,8 @@ Deno.serve(async (req) => {
     const row = await rowByToken(body.token);
     if (!row) return json({ error: "not_found" }, 404);
     if (!belongsTo(row, body.attempt_ref) || String(body.attempt_ref).length > 80) return json({ error: "bad_ref" }, 400);
-    await db.from("epms_submissions").update({ last_tx_ref: body.attempt_ref }).eq("id", row.id);
+    const hist = [...(Array.isArray(row.tx_refs) ? row.tx_refs : []), body.attempt_ref].slice(-30);
+    await db.from("epms_submissions").update({ last_tx_ref: body.attempt_ref, tx_refs: hist }).eq("id", row.id);
     return json({ ok: true });
   }
 
@@ -276,7 +349,7 @@ Deno.serve(async (req) => {
     if (!row) return json({ error: "not_found" }, 404);
     let status = row.payment_status;
     if (status !== "paid" && (row.last_tx_ref || row.email)) {
-      if (await reconcile(row)) status = "paid";
+      if ((await reconcile(row)).paid) status = "paid";
     }
     return json({ data: row.data, tx_ref: row.tx_ref, payment_status: status, updated_at: row.updated_at });
   }
@@ -287,8 +360,8 @@ Deno.serve(async (req) => {
     const row = await rowByToken(body.token);
     if (!row) return json({ error: "not_found" }, 404);
     if (row.payment_status === "paid") return json({ payment_status: "paid" });
-    const ok = await reconcile(row, body.transaction_id ? String(body.transaction_id) : undefined);
-    return json({ payment_status: ok ? "paid" : "unpaid" });
+    const r = await reconcile(row, body.transaction_id ? String(body.transaction_id) : undefined);
+    return json({ payment_status: r.paid ? "paid" : "unpaid" });
   }
 
   return json({ error: "unknown_action" }, 400);

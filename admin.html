@@ -142,6 +142,19 @@ textarea{min-height:70px;resize:vertical}
 .addgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;margin-top:8px}
 .addgrid label{font-size:13px;color:var(--ink-2);display:grid;gap:3px}
 @media (max-width:520px){ .addgrid{grid-template-columns:1fr} }
+.ans{width:100%;border-collapse:collapse;font-size:13.5px;margin-top:6px}
+.ans th,.ans td{border-top:1px solid var(--line);padding:6px 5px;text-align:left;vertical-align:top}
+.ans th{font-size:12px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+.ans td.m{white-space:nowrap;font-weight:700}
+.ans tr.empty td{color:var(--danger)}
+.miss{list-style:none;padding:0;margin:8px 0 0;display:grid;gap:4px;font-size:14px}
+.miss li{display:grid;grid-template-columns:22px 1fr;gap:6px}
+.miss .ok{color:var(--ok)} .miss .no{color:var(--danger)} .miss .warn{color:var(--amber-ink)}
+.found{border:1px solid var(--line);border-radius:9px;padding:8px 10px;margin-top:6px;font-size:13.5px}
+.found.good{border-color:var(--ok);background:var(--green-soft)}
+.pay-form{display:grid;grid-template-columns:120px 1fr;gap:6px 10px;align-items:center;margin-top:8px}
+.pay-form label{font-size:13px;color:var(--ink-2)}
+@media (max-width:520px){ .pay-form{grid-template-columns:1fr} .kv{grid-template-columns:110px 1fr} }
 .help{font-size:13.5px;color:var(--ink-2);background:var(--surface-2);border-radius:10px;padding:10px 12px;margin-top:10px}
 </style>
 </head>
@@ -179,7 +192,7 @@ textarea{min-height:70px;resize:vertical}
     <div class="grid2">
       <div>
         <section class="panel" id="attention_panel">
-          <div class="panel-head"><h2>Needs your attention</h2><label class="check small"><input type="checkbox" id="show_tests"> Include test profiles</label></div>
+          <div class="panel-head"><h2>Needs your attention</h2><span class="acts"><label class="check small"><input type="checkbox" id="show_tests"> Include test profiles</label><label class="check small"><input type="checkbox" id="show_arch"> Include archived</label></span></div>
           <div id="attention"></div>
         </section>
 
@@ -314,7 +327,9 @@ function progress(r){
   const blanks = months.reduce((a,m)=>a+Math.max(0,m.chosen-m.n),0);
   const aboutMe = r.surname && r.first_name && r.ippis;
   const sup = r.sup && r.sup.surname; const cso = r.cso && r.cso.surname;
-  return {months, filled, blanks, tasks:(r.kras||[]).length, aboutMe:!!aboutMe, sup:!!sup, cso:!!cso,
+  const x = r.extras||{}; const notes = ["outstanding_performance","areas_of_improvement","training_needs","future_goals","other_feedback"].filter(k=>(x[k]||"").trim()).length;
+  const complete = filled===12 && blanks===0;
+  return {months, filled, blanks, notes, complete, tasks:(r.kras||[]).length, aboutMe:!!aboutMe, sup:!!sup, cso:!!cso,
           sigs:[r.sig_me?"nurse":"", r.sig_sup?"supervisor":"", r.sig_cso?"counter-signer":""].filter(Boolean)};
 }
 function stage(r){
@@ -329,6 +344,7 @@ function stage(r){
       return {key:"done", label:"Sent", cls:"b-green", rank:9};
     }
     const overdue = paid && hoursSincePaid > SLA_HOURS;   // the 6-hour promise applies to paying nurses
+    if(!r.filled_at && !progress(r).complete) return {key:"unfinished", label: paid?"Paid, form not finished":"Free, form not finished", cls:"b-amber", rank:1, hoursSincePaid};
     if(r.filled_at && edited <= T(r.filled_at) + 60000) return {key:"send", label: overdue?"Overdue: send workbook":"Ready to send", cls: overdue?"b-red":"b-blue", rank: overdue?0:2, overdue, hoursSincePaid};
     if(r.filled_at) return {key:"regen", label: overdue?"Overdue: regenerate":"Edited: regenerate", cls: overdue?"b-red":"b-amber", rank: overdue?0:1, overdue, hoursSincePaid};
     return {key:"gen", label: overdue?"Overdue: generate":"Paid: generate workbook", cls: overdue?"b-red":"b-amber", rank: overdue?0:1, overdue, hoursSincePaid};
@@ -336,11 +352,12 @@ function stage(r){
   if(r.last_tx_ref) return {key:"payfail", label:"Tried to pay, not confirmed", cls:"b-red", rank:4};
   return {key:"filling", label:"Filling in / not paid", cls:"b-grey", rank:5};
 }
-const visible = () => (DATA?.rows||[]).filter(r => $("show_tests").checked || !r.is_test);
+const visible = () => (DATA?.rows||[]).filter(r => ($("show_tests").checked || !r.is_test) && ($("show_arch").checked || !r.archived));
 const ago = s => { if(!s) return "—"; const m = Math.round((T(DATA.now) - T(s))/60000); if(m<1) return "just now"; if(m<60) return m+" min ago"; const h=Math.round(m/60); if(h<48) return h+" h ago"; return Math.round(h/24)+" days ago"; };
 const when = s => s ? new Date(s).toLocaleString([], {day:"numeric", month:"short", hour:"2-digit", minute:"2-digit"}) : "—";
 function waNumber(p){ let d=String(p||"").replace(/\D/g,""); if(d.startsWith("0")) d="234"+d.slice(1); if(d.length===10) d="234"+d; return d.length>=12 ? d : ""; }
 function editLink(r){ return FORM_URL + "?t=" + r.edit_token; }
+function adminLink(r){ return FORM_URL + "?t=" + r.edit_token + "&admin=1"; }
 function waLink(r, kind){
   const n = waNumber(r.phone); if(!n) return "";
   const first = r.first_name || "there";
@@ -348,11 +365,21 @@ function waLink(r, kind){
     filling: `Hello ${first}, this is BuildNET Digital Solutions. You started your UCH EPMS 2025 form but haven't finished it yet. You can continue exactly where you stopped here: ${editLink(r)} (this link is private to you). Any questions, just reply here.`,
     payfail: `Hello ${first}, this is BuildNET Digital Solutions. We saw you tried to pay for your EPMS 2025 form, but the payment hasn't come through on our side yet. If you were debited, please reply with a screenshot of the debit and we'll confirm it right away. Otherwise you can try again here: ${editLink(r)}`,
     done: `Hello ${first}, your completed EPMS 2025 workbook and one-page summary have been sent${r.email?" to "+r.email:""}. Please check your inbox (and spam folder). Reply here if anything needs changing.`,
+    unfinished: `Hello ${first}, this is BuildNET Digital Solutions. Thank you, your payment for the EPMS 2025 form is confirmed. Your form isn't complete yet: ${missingText(r)}. Please finish it here (your answers are saved): ${editLink(r)} (this link is private to you). We'll prepare your workbook as soon as it's complete.`,
     general: `Hello ${first}, this is BuildNET Digital Solutions about your UCH EPMS 2025 form.`
   };
   return `https://wa.me/${n}?text=${encodeURIComponent(msgs[kind]||msgs.general)}`;
 }
 
+const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+function missingText(r){
+  const p = progress(r), parts = [];
+  const empty = MONTHS.filter((m,i)=>!p.months[i].n);
+  if(empty.length) parts.push(empty.length===12 ? "no monthly figures yet" : `no figures for ${empty.length===1?empty[0]:empty.slice(0,-1).join(", ")+" and "+empty.slice(-1)}`);
+  if(p.blanks) parts.push(`${p.blanks} task(s) chosen without a result`);
+  if(p.notes<5) parts.push(`${5-p.notes} of the 5 "about your year" answers are empty`);
+  return parts.join("; ") || "nothing missing";
+}
 // ---------- render ----------
 function render(){
   const rows = visible();
@@ -360,6 +387,7 @@ function render(){
   const paid = S.filter(x=>x.r.payment_status==="paid" && !x.r.complimentary);
   const revenue = paid.reduce((a,x)=>a+Number(x.r.amount_paid||0),0);
   const todo = S.filter(x=>["gen","regen","send","resend"].includes(x.s.key));
+  const unfinished = S.filter(x=>x.s.key==="unfinished");
   const overdue = S.filter(x=>x.s.overdue);
   const payfail = S.filter(x=>x.s.key==="payfail");
   const tiles = [
@@ -376,6 +404,7 @@ function render(){
   const now = T(DATA.now);
   const stale = S.filter(x=>x.s.key==="filling" && (now - T(x.r.data_updated_at||x.r.created_at)) > 24*3.6e6);
   const buckets = [
+    ["amber", "Paid, but her form isn't finished", "She paid, but some months or answers are still empty. Message her to finish before you generate. Open her profile to see exactly what's missing.", unfinished],
     ["red", "Overdue: past the 6-hour promise", "Paid, but the workbook hasn't been sent within 6 hours. Handle these first.", overdue],
     ["amber", "Generate or regenerate workbooks", "Paid (or complimentary) and waiting for their workbook, or edited since it was made. Ask Claude: “generate the pending EPMS workbooks”.", S.filter(x=>(x.s.key==="gen"||x.s.key==="regen") && !x.s.overdue)],
     ["blue", "Ready to send", "Workbook generated. Send the workbook and summary, then tap “Mark sent”.", S.filter(x=>x.s.key==="send" && !x.s.overdue)],
@@ -389,13 +418,14 @@ function render(){
     : `<div class="allclear">✓ Nothing needs you right now.</div>`;
 
   // filters + list
-  const F = [["all","All"],["filling","Not paid"],["payfail","Payment issue"],["todo","To generate / send"],["overdue","Overdue"],["paid","Paid"],["done","Sent"],["comp","Complimentary"]];
+  const F = [["all","All"],["unfinished","Paid, unfinished"],["filling","Not paid"],["payfail","Payment issue"],["todo","To generate / send"],["overdue","Overdue"],["paid","Paid"],["done","Sent"],["comp","Complimentary"]];
   $("filters").innerHTML = F.map(([k,l])=>`<button class="chip" data-filter="${k}" aria-pressed="${filter===k}">${l}</button>`).join("");
   const q = $("search").value.trim().toLowerCase();
   const pass = x => {
     const r=x.r, k=x.s.key;
     if(filter==="filling" && !(k==="filling"||k==="payfail")) return false;
     if(filter==="payfail" && k!=="payfail") return false;
+    if(filter==="unfinished" && k!=="unfinished") return false;
     if(filter==="todo" && !["gen","regen","send","resend"].includes(k)) return false;
     if(filter==="overdue" && !x.s.overdue) return false;
     if(filter==="paid" && !(r.payment_status==="paid" && !r.complimentary)) return false;
@@ -407,7 +437,7 @@ function render(){
   const list = S.filter(pass).sort((a,b)=> a.s.rank-b.s.rank || T(b.r.data_updated_at||b.r.created_at)-T(a.r.data_updated_at||a.r.created_at));
   $("rows").innerHTML = `<div class="row head"><div>Nurse</div><div>Status</div><div>Progress</div><div>Last activity</div></div>` +
     (list.length ? list.map(({r,s,p})=>`<div class="row" data-id="${r.id}" tabindex="0">
-      <div><b>${esc(full(r))}</b>${r.is_test?' <span class="badge b-grey">test</span>':''}${r.complimentary?' <span class="badge b-blue">free</span>':''}${r.source==="admin"?' <span class="badge b-grey">added by you</span>':''}<div class="small muted">${esc([r.designation, r.unit, r.ippis && "IPPIS "+r.ippis].filter(Boolean).join(" · "))}</div></div>
+      <div><b>${esc(full(r))}</b>${r.is_test?' <span class="badge b-grey">test</span>':''}${r.complimentary?' <span class="badge b-blue">free</span>':''}${r.source==="admin"?' <span class="badge b-grey">added by you</span>':''}${r.archived?' <span class="badge b-grey">archived</span>':''}<div class="small muted">${esc([r.designation, r.unit, r.ippis && "IPPIS "+r.ippis].filter(Boolean).join(" · "))}</div></div>
       <div><span class="badge ${s.cls}">${esc(s.label)}</span>${r.payment_status==="paid"?`<div class="small muted">${naira(r.amount_paid)} · ${ago(r.paid_at)}</div>`:""}</div>
       <div class="small">${p.filled}/12 months${p.blanks?` · <span style="color:var(--danger)">${p.blanks} blank</span>`:""}<div class="bar"><i style="width:${Math.round(p.filled/12*100)}%"></i></div></div>
       <div class="small muted">${ago(r.data_updated_at||r.created_at)}</div></div>`).join("")
@@ -416,7 +446,7 @@ function render(){
   // activity
   const names = Object.fromEntries((DATA.rows||[]).map(r=>[r.id, r]));
   const ICON = {created:"🆕", edited:"✏️", pay_started:"💳", paid:"✅", filled:"📄", unfilled:"↩️", delivered:"📨", undelivered:"↩️", admin:"⭐", note:"📝"};
-  const evs = (DATA.events||[]).filter(e=>!e.submission_id || !names[e.submission_id] || $("show_tests").checked || !names[e.submission_id].is_test);
+  const evs = (DATA.events||[]).filter(e=>{ const n=e.submission_id&&names[e.submission_id]; return !n || (($("show_tests").checked || !n.is_test) && ($("show_arch").checked || !n.archived)); });
   $("feed_count").textContent = evs.length ? `last ${evs.length}` : "";
   $("feed").innerHTML = evs.length ? evs.map(e=>`<div class="ev"><span class="ic" aria-hidden="true">${ICON[e.kind]||"•"}</span>
       <div><span class="${e.submission_id&&names[e.submission_id]?"lnk":""}" data-id="${e.submission_id||""}">${esc(e.detail)}</span><time datetime="${esc(e.at)}">${when(e.at)} · ${ago(e.at)}</time></div></div>`).join("")
@@ -424,7 +454,7 @@ function render(){
 }
 function personLine({r,s,p}){
   const hrs = (s.hoursSincePaid!=null && r.payment_status==="paid") ? (s.overdue ? `paid ${Math.floor(s.hoursSincePaid)} h ago` : `${Math.max(0, Math.ceil(SLA_HOURS - s.hoursSincePaid))} h left of ${SLA_HOURS}`) : "";
-  const wa = waLink(r, s.key==="payfail"?"payfail":s.key==="filling"?"filling":"general");
+  const wa = waLink(r, s.key==="payfail"?"payfail":s.key==="filling"?"filling":s.key==="unfinished"?"unfinished":"general");
   const act = [];
   if(s.key==="send"||s.key==="resend") act.push(`<button class="btn small primary" data-act="delivered" data-id="${r.id}">Mark sent</button>`);
   if(s.key==="payfail") act.push(`<button class="btn small" data-act="recheck" data-id="${r.id}">Check payment</button>`);
@@ -433,46 +463,90 @@ function personLine({r,s,p}){
   return `<div class="person"><div class="who" data-open="${r.id}"><b>${esc(full(r))}</b><span class="small muted">${esc([r.unit, r.phone, hrs, p.filled+"/12 months", p.blanks?p.blanks+" blank result(s)":""].filter(Boolean).join(" · "))}</span></div><div class="acts">${act.join("")}</div></div>`;
 }
 
-// ---------- detail ----------
+// ---------- detail: one nurse's full profile ----------
+let DET = null, CHECK = {};   // latest full record for the open nurse; Flutterwave findings per nurse
 async function openDetail(id, quiet){
   const r = (DATA.rows||[]).find(x=>x.id===id); if(!r) return;
+  if(openId!==id) DET=null;
   openId = id; const s = stage(r), p = progress(r);
   const d = $("drawer");
-  const person = (o, label) => o && (o.surname||o.first_name) ? `<dt>${label}</dt><dd>${esc([o.first_name,o.other_name,o.surname].filter(Boolean).join(" "))}<br><span class="small muted">${esc([o.designation, o.ippis && "IPPIS "+o.ippis, o.phone, o.email].filter(Boolean).join(" · "))}</span></dd>` : `<dt>${label}</dt><dd class="muted">Not filled</dd>`;
-  const months = ["J","F","M","A","M","J","J","A","S","O","N","D"].map((m,i)=>{ const x=p.months[i]; return `<span class="${x.n===2?"full":x.n?"half":""}" title="${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][i]}: ${x.n} of 2">${m}</span>`; }).join("");
-  const x = r.extras || {};
+  const person = (o, label) => o && (o.surname||o.first_name) ? `<dt>${label}</dt><dd>${esc([o.first_name,o.other_name,o.surname].filter(Boolean).join(" "))}<br><span class="small muted">${esc([o.designation, o.ippis && "IPPIS "+o.ippis, o.phone, o.email].filter(Boolean).join(" · "))}</span></dd>` : `<dt>${label}</dt><dd style="color:var(--danger)">Not filled</dd>`;
+  const months = ["J","F","M","A","M","J","J","A","S","O","N","D"].map((m,i)=>{ const x=p.months[i]; return `<span class="${x.n&&x.n===x.chosen?"full":x.n?"half":""}" title="${MONTHS[i]}: ${x.n} result(s)">${m}</span>`; }).join("");
+  // what's missing
+  const same = (a,b)=> a && b && ((a.ippis && a.ippis===b.ippis) || ((a.surname||"").toLowerCase()===(b.surname||"").toLowerCase() && (a.first_name||"").toLowerCase()===(b.first_name||"").toLowerCase()));
+  const me = {ippis:r.ippis, surname:r.surname, first_name:r.first_name};
+  const empty = MONTHS.filter((m,i)=>!p.months[i].n);
+  const L = [];
+  const item = (ok, text, cls) => L.push(`<li><span class="${cls||(ok?"ok":"no")}">${ok?"✓":cls==="warn"?"!":"✗"}</span><span>${text}</span></li>`);
+  item(p.aboutMe, p.aboutMe ? "Her details (name, IPPIS)" : "Her details are incomplete (name or IPPIS missing)");
+  if(!p.sup) item(false, "Supervisor not filled");
+  else if(same(r.sup, me)) item(false, "Supervisor is <b>herself</b> (same name/IPPIS). Ask her who her supervisor is.", "warn");
+  else item(true, "Supervisor");
+  item(p.cso, p.cso ? "Counter-signing officer" : "Counter-signing officer not filled");
+  item(p.tasks>0, p.tasks ? `${p.tasks} task(s) chosen` : "No tasks chosen");
+  item(!empty.length, empty.length ? `Monthly figures missing for <b>${empty.length===12?"all 12 months":empty.join(", ")}</b>` : "Figures for all 12 months");
+  if(p.blanks) item(false, `${p.blanks} chosen task(s) with no result`);
+  item(p.notes===5, p.notes===5 ? "All 5 “about your year” answers" : `${5-p.notes} of 5 “about your year” answers empty`, p.notes===5?"":"warn");
+  item(p.sigs.length===3, p.sigs.length ? `Signatures uploaded: ${esc(p.sigs.join(", "))}` : "No signatures uploaded (they'll sign by hand)", p.sigs.length===3?"":"warn");
+  const pay = r.payment_status==="paid"
+    ? `<b style="color:var(--ok)">Paid ${naira(r.amount_paid)}</b> · ${when(r.paid_at)}<br><span class="small muted">${r.payment_method==="manual"?`Confirmed by you${r.payment_note?": "+esc(r.payment_note):""}`:"Verified with Flutterwave"}</span>`
+    : r.complimentary ? "Complimentary (no payment needed)" : `<b style="color:var(--danger)">Not paid</b>`;
+  const found = CHECK[r.id];
   d.innerHTML = `
-    <div class="panel-head"><div><div class="eyebrow">Nurse</div><h2 id="d_name">${esc(full(r))}</h2></div><button class="btn small ghost" id="d_close">Close</button></div>
-    <span class="badge ${s.cls}">${esc(s.label)}</span> ${r.is_test?'<span class="badge b-grey">test profile</span>':''} ${r.complimentary?'<span class="badge b-blue">complimentary</span>':''} ${r.source==="admin"?'<span class="badge b-grey">added by you</span>':''}
+    <div class="panel-head"><div><div class="eyebrow">Nurse profile</div><h2 id="d_name">${esc(full(r))}</h2><div class="small muted">${esc([r.designation, r.unit, r.ippis && "IPPIS "+r.ippis].filter(Boolean).join(" · "))}</div></div><button class="btn small ghost" id="d_close">Close</button></div>
+    <span class="badge ${s.cls}">${esc(s.label)}</span> ${r.is_test?'<span class="badge b-grey">test profile</span>':''} ${r.complimentary?'<span class="badge b-blue">complimentary</span>':''} ${r.source==="admin"?'<span class="badge b-grey">added by you</span>':''} ${r.archived?'<span class="badge b-grey">archived</span>':''}
+    <div id="d_twins"></div>
+
+    <div class="sec"><h3>Where she is</h3>
+      <div class="months" style="margin:8px 0">${months}</div>
+      <ul class="miss">${L.join("")}</ul>
+    </div>
+
+    <div class="sec"><h3>Payment</h3>
+      <dl class="kv" style="margin-top:8px">
+        <dt>Status</dt><dd>${pay}</dd>
+        <dt>Checkout opened</dt><dd>${(r.tx_refs||[]).length || (r.last_tx_ref?1:0)} time(s)${r.last_checked_at?` · last checked ${ago(r.last_checked_at)}`:""}</dd>
+        <dt>Her reference</dt><dd class="small">${esc(r.tx_ref||"—")}</dd>
+      </dl>
+      <div id="d_found">${found?renderFound(found):""}</div>
+      <div class="acts" style="margin-top:8px">
+        ${r.payment_status!=="paid" ? `<button class="btn small primary" data-act="recheck" data-id="${r.id}">Check with Flutterwave now</button>` : ""}
+        ${r.payment_status!=="paid" && !r.complimentary ? `<button class="btn small" id="d_manual_btn">I've seen the money: confirm manually</button>` : ""}
+        ${r.payment_status==="paid" && r.payment_method==="manual" ? `<button class="btn small ghost" data-act="unmark_paid" data-id="${r.id}">Undo manual confirmation</button>` : ""}
+      </div>
+      <div id="d_manual" hidden>
+        <div class="pay-form">
+          <label for="d_amt">Amount (₦)</label><input id="d_amt" type="number" inputmode="numeric" value="${DATA.price||3500}">
+          <label for="d_pnote">How you confirmed</label><input id="d_pnote" placeholder="e.g. Bank credit seen 29 Sep, 12:05">
+        </div>
+        <div class="acts" style="margin-top:8px"><button class="btn small primary" data-act="mark_paid" data-id="${r.id}">Confirm payment</button></div>
+        <p class="small muted" style="margin:6px 0 0">Use this only when you've seen the money yourself (bank alert or Flutterwave dashboard). It's recorded as “confirmed by you” with your note.</p>
+      </div>
+      ${r.payment_status!=="paid" ? `<p class="help">“Check with Flutterwave now” searches every checkout attempt she made and every Flutterwave payment since she started. Bank transfers can take a few minutes to show as successful; if she has just paid, check again shortly.</p>` : ""}
+    </div>
 
     <div class="sec"><h3>What to do</h3>
       <div class="acts" style="margin-top:8px">
-        ${r.filled_at ? `<button class="btn small" data-act="unfilled" data-id="${r.id}">Undo “workbook generated”</button>` : `<button class="btn small" data-act="filled" data-id="${r.id}">Mark workbook generated</button>`}
-        ${r.delivered_at ? `<button class="btn small" data-act="undelivered" data-id="${r.id}">Undo “sent”</button>` : `<button class="btn small primary" data-act="delivered" data-id="${r.id}">Mark sent</button>`}
-        ${r.payment_status!=="paid" ? `<button class="btn small" data-act="recheck" data-id="${r.id}">Check payment again</button>` : ""}
-        <button class="btn small" data-act="${r.complimentary?"uncomp":"comp"}" data-id="${r.id}">${r.complimentary?"Remove complimentary":"Make complimentary (free)"}</button>
-        <button class="btn small ghost" data-act="${r.is_test?"untest":"test"}" data-id="${r.id}">${r.is_test?"Not a test":"Mark as test"}</button>
-      </div>
-      <div class="acts" style="margin-top:8px">
-        ${waNumber(r.phone)?`<a class="btn small" href="${waLink(r, s.key==="payfail"?"payfail":s.key==="done"?"done":s.key==="filling"?"filling":"general")}" target="_blank" rel="noopener">WhatsApp her</a>`:""}
+        ${waNumber(r.phone)?`<a class="btn small primary" href="${waLink(r, s.key==="payfail"?"payfail":s.key==="done"?"done":s.key==="filling"?"filling":s.key==="unfinished"?"unfinished":"general")}" target="_blank" rel="noopener">WhatsApp her${s.key==="unfinished"?" what's missing":""}</a>`:""}
         ${r.phone?`<a class="btn small ghost" href="tel:${esc(r.phone)}">Call</a>`:""}
         ${r.email?`<a class="btn small ghost" href="mailto:${esc(r.email)}">Email</a>`:""}
-        <a class="btn small ghost" href="${editLink(r)}" target="_blank" rel="noopener">Open her form</a>
+        <button class="btn small ghost" id="d_json">Download her answers (.json)</button>
+      </div>
+      <div class="acts" style="margin-top:8px">
+        ${r.filled_at ? `<button class="btn small" data-act="unfilled" data-id="${r.id}">Undo “workbook generated”</button>` : `<button class="btn small" data-act="filled" data-id="${r.id}">Mark workbook generated</button>`}
+        ${r.delivered_at ? `<button class="btn small" data-act="undelivered" data-id="${r.id}">Undo “sent”</button>` : `<button class="btn small" data-act="delivered" data-id="${r.id}">Mark sent</button>`}
+        <button class="btn small" data-act="${r.complimentary?"uncomp":"comp"}" data-id="${r.id}">${r.complimentary?"Remove complimentary":"Make complimentary (free)"}</button>
+        <button class="btn small ghost" data-act="${r.is_test?"untest":"test"}" data-id="${r.id}">${r.is_test?"Not a test":"Mark as test"}</button>
+        <button class="btn small ghost" data-act="${r.archived?"unarchive":"archive"}" data-id="${r.id}">${r.archived?"Restore record":"Archive record"}</button>
+      </div>
+      <div class="acts" style="margin-top:8px">
+        <a class="btn small ghost" href="${adminLink(r)}" target="_blank" rel="noopener">Edit her form (admin view)</a>
         <button class="btn small ghost" data-copy="${esc(editLink(r))}">Copy her private link</button>
       </div>
-      <p class="help">“Open her form” shows exactly what she sees. Any change you make there saves to her answers, so use it to help her, not to browse. Her private link opens her answers for anyone who has it: only send it to her.</p>
+      <p class="help">Everything she has entered is shown below, so you don't need to open her form to check her work. “Edit her form (admin view)” opens only her answers, never anything saved on this device, and any change you make there saves to her record. Send her private link only to her.</p>
     </div>
 
-    <div class="sec"><h3>Progress</h3>
-      <div class="months" style="margin:8px 0">${months}</div>
-      <dl class="kv">
-        <dt>Months filled</dt><dd>${p.filled} of 12${p.blanks?` · <b style="color:var(--danger)">${p.blanks} result(s) blank</b>`:""}</dd>
-        <dt>Tasks chosen</dt><dd>${p.tasks}</dd>
-        <dt>Signatures</dt><dd>${p.sigs.length?esc(p.sigs.join(", ")):"none added (sign by hand)"}</dd>
-        <dt>Year notes</dt><dd>${["outstanding_performance","areas_of_improvement","training_needs","future_goals","other_feedback"].filter(k=>(x[k]||"").trim()).length} of 5 filled</dd>
-      </dl>
-      <div class="sigs" id="d_sigs" style="margin-top:8px"></div>
-    </div>
+    <div class="sec"><h3>Her answers</h3><div id="d_answers"><p class="muted small">Loading her full answers…</p></div></div>
 
     <div class="sec"><h3>People</h3>
       <dl class="kv" style="margin-top:8px">
@@ -482,13 +556,11 @@ async function openDetail(id, quiet){
       </dl>
     </div>
 
-    <div class="sec"><h3>Payment and delivery</h3>
+    <div class="sec"><h3>Timeline</h3>
       <dl class="kv" style="margin-top:8px">
-        <dt>Payment</dt><dd>${r.payment_status==="paid"?`<b>Paid ${naira(r.amount_paid)}</b> · ${when(r.paid_at)}`:r.complimentary?"Complimentary (no payment needed)":"Not paid"}</dd>
-        <dt>Reference</dt><dd class="small">${esc(r.tx_ref||"—")}</dd>
-        ${r.last_tx_ref && r.payment_status!=="paid"?`<dt>Last attempt</dt><dd class="small">${esc(r.last_tx_ref)}${r.last_checked_at?` · checked ${ago(r.last_checked_at)}`:""}</dd>`:""}
         <dt>Started</dt><dd>${when(r.created_at)}</dd>
         <dt>Last edit</dt><dd>${when(r.data_updated_at)} · ${ago(r.data_updated_at)}</dd>
+        <dt>Paid</dt><dd>${when(r.paid_at)}</dd>
         <dt>Workbook made</dt><dd>${when(r.filled_at)}</dd>
         <dt>Sent</dt><dd>${when(r.delivered_at)}</dd>
       </dl>
@@ -503,13 +575,53 @@ async function openDetail(id, quiet){
     <div class="sec"><h3>Her activity</h3><div class="feed" id="d_feed" style="max-height:none;margin-top:6px"><p class="muted small">Loading…</p></div></div>`;
   if(!quiet || d.hidden){ d.hidden=false; $("scrim").hidden=false; d.scrollTop=0; }
   $("d_close").onclick = closeDrawer;
+  if($("d_manual_btn")) $("d_manual_btn").onclick = ()=>{ $("d_manual").hidden=false; $("d_pnote").focus(); };
+  $("d_json").onclick = ()=>{ if(!DET){ toast("Still loading her answers"); return; }
+    const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([JSON.stringify(DET.full, null, 1)], {type:"application/json"}));
+    a.download=`EPMS_2025_${(r.surname||"nurse").replace(/\W+/g,"_")}_${(r.first_name||"").replace(/\W+/g,"_")}.json`; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),2000); };
+  if(DET && DET.id===id) paintDetail(r, DET);
   try{
     const det = await call("detail", {id});
-    const sg = det.signatures||{};
-    $("d_sigs").innerHTML = [["sig_me","Nurse"],["sig_sup","Supervisor"],["sig_cso","Counter-signer"]].filter(([k])=>sg[k]).map(([k,l])=>`<figure><img src="${sg[k]}" alt="${l} signature"><figcaption>${l}</figcaption></figure>`).join("");
-    const ICON = {created:"🆕", edited:"✏️", pay_started:"💳", paid:"✅", filled:"📄", unfilled:"↩️", delivered:"📨", undelivered:"↩️", admin:"⭐", note:"📝"};
-    $("d_feed").innerHTML = (det.events||[]).map(e=>`<div class="ev"><span class="ic">${ICON[e.kind]||"•"}</span><div>${esc(e.detail)}<time>${when(e.at)} · ${ago(e.at)}</time></div></div>`).join("") || `<p class="muted small">No activity recorded.</p>`;
-  }catch(e){ $("d_feed").innerHTML = `<p class="err">Couldn't load details.</p>`; }
+    if(openId!==id) return;
+    DET = {id, ...det, full: {...det.data,
+      signature: det.signatures?.sig_me ? {png:det.signatures.sig_me, approved:true} : null,
+      supervisor_signature: det.signatures?.sig_sup ? {png:det.signatures.sig_sup, approved:true, consent:true} : null,
+      cso_signature: det.signatures?.sig_cso ? {png:det.signatures.sig_cso, approved:true, consent:true} : null}};
+    paintDetail(r, DET);
+  }catch(e){ if(openId===id){ $("d_answers").innerHTML = `<p class="err">Couldn't load her answers. Tap Refresh.</p>`; $("d_feed").innerHTML=""; } }
+}
+function renderFound(f){
+  if(!f.configured) return `<div class="found">Flutterwave isn't configured on the server.</div>`;
+  if(!f.found.length) return `<div class="found">Flutterwave has <b>no payment</b> for her yet (searched ${esc(f.searched.join(", "))}). If she says she paid, ask for a screenshot of the debit and check again in a few minutes.</div>`;
+  return f.found.map(t=>`<div class="found ${t.status==="successful"?"good":""}"><b>${t.status==="successful"?"✓ Successful":esc(t.status||"?")}</b> · ${esc(t.currency||"")} ${esc(t.amount??"")} · ${esc((t.method||"").replace(/_/g," "))} · ${when(t.at)}<br><span class="small muted">${esc([t.name, t.email, "ref "+t.tx_ref, "Flutterwave id "+t.id].filter(Boolean).join(" · "))}</span></div>`).join("");
+}
+function paintDetail(r, det){
+  const D = det.data || {}, sg = det.signatures || {};
+  const P = (o)=> o ? [["Surname",o.surname],["First name",o.first_name],["Other name",o.other_name],["Designation",o.designation],["IPPIS",o.ippis],["Phone",o.phone],["Email",o.email]].concat(o.unit!==undefined?[["Department",o.department],["Ward / unit",o.unit]]:[]) : [];
+  const kv = (rows)=> `<dl class="kv">${rows.map(([k,v])=>`<dt>${esc(k)}</dt><dd>${(v||"").toString().trim()?esc(v):'<span style="color:var(--danger)">empty</span>'}</dd>`).join("")}</dl>`;
+  const used = new Set();
+  (D.monthly||[]).forEach(m=>(m.rows||[]).forEach(x=>{ if(x.kra) used.add((x.code||"")+"|"+x.kra); }));
+  const tasks = (D.kras||[]).map((k,i)=>`<tr><td>${i+1}</td><td><b>${esc(k.code||"")}</b></td><td>${esc(k.kra||"")}${k.custom?' <span class="badge b-blue">her own task</span>':''}${used.has((k.code||"")+"|"+k.kra)?"":' <span class="badge b-grey">not used in any month</span>'}</td></tr>`).join("");
+  const monthRows = MONTHS.map((mn,mi)=>{ const m=(D.monthly||[])[mi]||{}; const rows=(m.rows||[]).filter(x=>x.kra||x.output||x.issues);
+    if(!rows.length) return `<tr class="empty"><td class="m">${mn.slice(0,3)}</td><td colspan="3">Nothing entered</td></tr>`;
+    return rows.map((x,i)=>`<tr${String(x.output??"").trim()===""?' class="empty"':''}><td class="m">${i?"":mn.slice(0,3)}</td><td><b>${esc(x.code||"")}</b> ${esc(x.kra||"")}</td><td><b>${String(x.output??"").trim()===""?"no result":esc(x.output)}</b></td><td>${esc(x.issues||"")}</td></tr>`).join(""); }).join("");
+  const X = D.extras||{};
+  const sigs = [["sig_me","Her signature"],["sig_sup","Supervisor"],["sig_cso","Counter-signer"]].map(([k,l])=> sg[k] ? `<figure><img src="${sg[k]}" alt="${l}"><figcaption>${l}</figcaption></figure>` : `<figure><div class="small muted" style="padding:18px 0">not uploaded</div><figcaption>${l}</figcaption></figure>`).join("");
+  $("d_answers").innerHTML = `
+    <h3 style="margin-top:10px">About her</h3>${kv(P(D.employee))}
+    <h3 style="margin-top:12px">Supervisor</h3>${kv(P(D.supervisor))}
+    <h3 style="margin-top:12px">Counter-signing officer</h3>${kv(P(D.countersigning_officer))}
+    <h3 style="margin-top:12px">Tasks chosen (${(D.kras||[]).length})</h3>
+    ${tasks?`<div style="overflow-x:auto"><table class="ans"><tr><th>#</th><th>Code</th><th>Task</th></tr>${tasks}</table></div>`:'<p style="color:var(--danger)">None yet.</p>'}
+    <h3 style="margin-top:12px">Month by month</h3>
+    <div style="overflow-x:auto"><table class="ans"><tr><th>Month</th><th>Task</th><th>Result</th><th>Issues</th></tr>${monthRows}</table></div>
+    <h3 style="margin-top:12px">About her year</h3>
+    ${kv([["Outstanding performance",X.outstanding_performance],["Areas of improvement",X.areas_of_improvement],["Training needs",X.training_needs],["Future goals",X.future_goals],["Other feedback",X.other_feedback]])}
+    <h3 style="margin-top:12px">Signatures</h3><div class="sigs" style="margin-top:6px">${sigs}</div>`;
+  const tw = (det.twins||[]);
+  $("d_twins").innerHTML = tw.length ? `<div class="found" style="margin-top:10px">She has <b>${tw.length} other record(s)</b> with the same IPPIS or phone: ${tw.map(t=>`<span data-open="${t.id}" style="cursor:pointer;text-decoration:underline">started ${when(t.created_at)} · ${(t.kras||[]).length} task(s) · ${t.payment_status==="paid"?"paid":"not paid"}${t.archived?" · archived":""}</span>`).join("; ")}. Keep the one she's using and archive the rest.</div>` : "";
+  const ICON = {created:"🆕", edited:"✏️", pay_started:"💳", paid:"✅", filled:"📄", unfilled:"↩️", delivered:"📨", undelivered:"↩️", admin:"⭐", note:"📝"};
+  $("d_feed").innerHTML = (det.events||[]).map(e=>`<div class="ev"><span class="ic">${ICON[e.kind]||"•"}</span><div>${esc(e.detail)}<time>${when(e.at)} · ${ago(e.at)}</time></div></div>`).join("") || `<p class="muted small">No activity recorded.</p>`;
 }
 function closeDrawer(){ $("drawer").hidden=true; $("scrim").hidden=true; openId=null; }
 $("scrim").onclick = closeDrawer;
@@ -518,13 +630,23 @@ document.addEventListener("keydown", e=>{ if(e.key==="Escape"){ closeDrawer(); c
 // ---------- actions ----------
 async function act(kind, id, btn){
   const map = { delivered:{delivered:true}, undelivered:{delivered:false}, filled:{filled:true}, unfilled:{filled:false},
-                comp:{complimentary:true}, uncomp:{complimentary:false}, test:{is_test:true}, untest:{is_test:false} };
+                comp:{complimentary:true}, uncomp:{complimentary:false}, test:{is_test:true}, untest:{is_test:false},
+                archive:{archived:true}, unarchive:{archived:false} };
   if(btn) btn.disabled=true;
   try{
-    if(kind==="recheck"){ const r = await call("recheck", {id}); toast(r.payment_status==="paid" ? "Payment found. Marked as paid." : "Still no successful payment found."); }
+    if(kind==="recheck"){ if(btn) btn.textContent="Checking Flutterwave…";
+      const r = await call("recheck", {id}); CHECK[id] = r;
+      toast(r.payment_status==="paid" ? "Payment found and confirmed. Marked as paid." : r.found.length ? "Flutterwave has an attempt, but it isn't successful yet." : "Flutterwave has no payment for her yet."); }
+    else if(kind==="mark_paid"){ const amount=Number($("d_amt").value), note=$("d_pnote").value.trim();
+      if(!(amount>0)){ toast("Enter the amount you received"); if(btn) btn.disabled=false; return; }
+      if(!note){ toast("Add a short note on how you confirmed it"); $("d_pnote").focus(); if(btn) btn.disabled=false; return; }
+      if(!confirm(`Confirm that ${naira(amount)} was received from this nurse?`)){ if(btn) btn.disabled=false; return; }
+      await call("mark_paid", {id, amount, note}); toast("Payment confirmed"); }
+    else if(kind==="unmark_paid"){ if(!confirm("Undo your manual payment confirmation?")){ if(btn) btn.disabled=false; return; } await call("unmark_paid", {id}); toast("Manual confirmation undone"); }
     else if(kind==="note"){ await call("set", {id, fields:{admin_note: $("d_note").value}}); toast("Note saved"); }
-    else { if(kind==="undelivered" && !confirm("Undo “sent” for this nurse?")) { if(btn) btn.disabled=false; return; }
-      await call("set", {id, fields: map[kind]}); toast({delivered:"Marked as sent", undelivered:"Sent undone", filled:"Marked as generated", unfilled:"Generated undone", comp:"Now complimentary", uncomp:"No longer complimentary", test:"Marked as test", untest:"No longer a test"}[kind]); }
+    else { if(kind==="archive" && !confirm("Archive this record? It will be hidden from your lists (you can restore it with “Include archived”).")) { if(btn) btn.disabled=false; return; }
+      if(kind==="undelivered" && !confirm("Undo “sent” for this nurse?")) { if(btn) btn.disabled=false; return; }
+      await call("set", {id, fields: map[kind]}); toast({delivered:"Marked as sent", undelivered:"Sent undone", filled:"Marked as generated", unfilled:"Generated undone", comp:"Now complimentary", uncomp:"No longer complimentary", test:"Marked as test", untest:"No longer a test", archive:"Archived (hidden from lists)", unarchive:"Restored"}[kind]); }
     await refresh(true);
   }catch(e){ toast(e.code==="wrong_passcode" ? "Signed out: passcode changed" : "That didn't work. Try again."); if(e.code==="wrong_passcode") signOut(); }
   if(btn) btn.disabled=false;
@@ -540,12 +662,13 @@ document.addEventListener("click", e=>{
 document.addEventListener("keydown", e=>{ if(e.key==="Enter"){ const row=e.target.closest&&e.target.closest(".row[data-id]"); if(row) openDetail(row.dataset.id); } });
 $("search").addEventListener("input", render);
 $("show_tests").addEventListener("change", render);
+$("show_arch").addEventListener("change", render);
 
 // ---------- CSV ----------
 $("csv").onclick = ()=>{
-  const head = ["Name","IPPIS","Designation","Unit","Phone","Email","Status","Paid","Amount","Paid at","Months filled","Blank results","Signatures","Supervisor","Counter-signer","Started","Last edit","Workbook made","Sent","Complimentary","Test","Note"];
+  const head = ["Name","IPPIS","Designation","Unit","Phone","Email","Status","Paid","Amount","Paid at","Payment confirmed by","Months filled","Blank results","Signatures","Supervisor","Counter-signer","Started","Last edit","Workbook made","Sent","Complimentary","Test","Note"];
   const lines = [head].concat(visible().map(r=>{ const s=stage(r), p=progress(r);
-    return [full(r), r.ippis, r.designation, r.unit, r.phone, r.email, s.label, r.payment_status==="paid"?"yes":"no", r.amount_paid||"", r.paid_at||"", p.filled, p.blanks, p.sigs.join(" / "),
+    return [full(r), r.ippis, r.designation, r.unit, r.phone, r.email, s.label, r.payment_status==="paid"?"yes":"no", r.amount_paid||"", r.paid_at||"", r.payment_status==="paid"?(r.payment_method==="manual"?"admin: "+(r.payment_note||""):"Flutterwave"):"", p.filled, p.blanks, p.sigs.join(" / "),
       r.sup?[r.sup.first_name,r.sup.surname].filter(Boolean).join(" "):"", r.cso?[r.cso.first_name,r.cso.surname].filter(Boolean).join(" "):"",
       r.created_at, r.data_updated_at||"", r.filled_at||"", r.delivered_at||"", r.complimentary?"yes":"no", r.is_test?"yes":"no", r.admin_note||""]; }));
   const csv = lines.map(l=>l.map(v=>`"${String(v??"").replace(/"/g,'""')}"`).join(",")).join("\r\n");

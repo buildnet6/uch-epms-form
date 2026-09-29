@@ -178,6 +178,7 @@ pre.out{white-space:pre-wrap;word-break:break-word;background:var(--surface-2);b
 .sigctl input[type=range]{width:150px}
 .sigok{font-weight:700;color:var(--ok)}
 [hidden]{display:none!important}
+body.loading #f{opacity:.35;pointer-events:none}
 .savebar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;color:var(--ink-2);padding-top:8px}
 .savebar .dot{width:9px;height:9px;border-radius:50%;background:var(--muted);flex:none}
 .savebar.ok .dot{background:var(--ok)} .savebar.wait .dot{background:var(--amber)} .savebar.off .dot{background:var(--danger)}
@@ -381,12 +382,20 @@ const $ = id => document.getElementById(id);
 const TEXT_IDS = [...document.querySelectorAll('#f input[id]:not([type=search]):not([type=checkbox]):not(#kra_own):not(#edit_link), #f textarea[id]')].map(e=>e.id);
 
 // ---------- draft save (per device) ----------
+// A private link (?t=...) always shows that nurse's own answers from the server, never a draft another person left on
+// this device. The admin view (?t=...&admin=1) never reads or writes anything on the device.
+const URLP = new URLSearchParams(location.search);
+const LINK_TOKEN = URLP.get("t") || "";
+const ADMIN_VIEW = !!LINK_TOKEN && URLP.get("admin") === "1";
 let unsynced=false;
 function saveDraft(dirty=true){
   if(dirty){ unsynced=true; if(typeof scheduleAutosave==="function") scheduleAutosave(); }
+  if(ADMIN_VIEW) return;
   try{ const v={}; TEXT_IDS.forEach(id=>v[id]=$(id).value); localStorage.setItem(KEY, JSON.stringify({v, kras:state.kras, months:state.months, sigs:state.sigs, keep:state.keep, step:state.step, unsynced, token:(typeof token!=="undefined"?token:"")})); }catch(e){}
 }
-function loadDraft(){ try{ const d=JSON.parse(localStorage.getItem(KEY)||"null"); if(!d) return null; unsynced=!!d.unsynced;
+function loadDraft(){ if(ADMIN_VIEW) return null; try{ const d=JSON.parse(localStorage.getItem(KEY)||"null"); if(!d) return null;
+  if(LINK_TOKEN && d.token!==LINK_TOKEN) return null;   // someone else's draft on this device: never show it under this link
+  unsynced=!!d.unsynced;
   Object.entries(d.v||{}).forEach(([id,val])=>{ if($(id) && val!=null) $(id).value=val; });
   if(Array.isArray(d.kras)) state.kras=d.kras; if(Array.isArray(d.months)&&d.months.length===12) state.months=d.months.map(m=>{ const a=(m||[]).slice(0,5); while(a.length<5) a.push({k:"",s:"",i:""}); return a; }); if(d.keep&&typeof d.keep==="object") state.keep=d.keep; registerCustom(state.kras); if(d.sigs&&typeof d.sigs==="object") state.sigs=Object.assign({me:"",sup:"",cso:""},d.sigs); else if(typeof d.signature==="string") state.sigs.me=d.signature;
   if(Number.isInteger(d.step)) state.step=Math.min(d.step,STEPS.length-1);
@@ -641,7 +650,7 @@ async function api(action, extra){
   return b;
 }
 function editLink(){ return location.origin + location.pathname + "?t=" + token; }
-function rememberToken(t){ token=t; try{ localStorage.setItem(TOKEN_KEY,t); }catch(e){} try{ history.replaceState(null,"",location.pathname+"?t="+t); }catch(e){} }
+function rememberToken(t){ token=t; if(ADMIN_VIEW) return; try{ localStorage.setItem(TOKEN_KEY,t); }catch(e){} try{ history.replaceState(null,"",location.pathname+"?t="+t); }catch(e){} }
 function setStatus(id,msg,cls){ const el=$(id); el.textContent=msg; el.className="status"+(cls?" "+cls:""); }
 function busy(on,label){ const b=$("submit_btn"); b.disabled=on; b.classList.toggle("busy",on); if(label) b.textContent=label; }
 const priceFmt = n => Number(n).toLocaleString("en-NG");
@@ -662,6 +671,9 @@ function renderPaidState(){
     $("submit_btn").innerHTML = "Save and pay &#8358;" + priceFmt(CONFIG.PRICE);
   }
   const bn=$("edit_banner");
+  if(ADMIN_VIEW){ const nm=[$("emp_first").value,$("emp_surname").value].filter(Boolean).join(" ")||"this nurse";
+    bn.hidden=false; bn.className="banner warn"; bn.textContent=`Admin view: you're looking at ${nm}'s form (${paid?"paid":"not paid"}). Changes you make save to her record. Nothing is stored on this device.`;
+    $("submit_btn").textContent="Save changes to her record"; return; }
   if(token && paid){ bn.hidden=false; bn.className="banner"; bn.textContent="You're editing your submitted EPMS details. Payment is confirmed."; }
   else if(token){ bn.hidden=false; bn.className="banner warn"; bn.textContent="Your details are saved, but payment is not complete yet. Finish on the last step."; }
   else bn.hidden=true;
@@ -953,14 +965,15 @@ function showPending(){
 $("submit_btn").onclick=async()=>{
   const miss=firstIncompleteStep();
   if(miss>=0){ show(miss); validate(miss); return; }
-  if(!$("consent").checked){ setStatus("send_status","Please tick the confirmation box first.","bad"); $("consent").focus(); return; }
+  if(!ADMIN_VIEW && !$("consent").checked){ setStatus("send_status","Please tick the confirmation box first.","bad"); $("consent").focus(); return; }
   const wasPaid = paymentStatus==="paid";
   busy(true,"Saving…"); setStatus("send_status","","");
   try{
     const r=await api("save",{token:token||undefined,data:collect()});
     rememberToken(r.token); txRef=r.tx_ref; paymentStatus=r.payment_status;
     unsynced=false; renderPaidState(); saveDraft(false); setSaveBar("ok","Saved online.");
-    if(paymentStatus==="paid"){ setStatus("send_status", wasPaid?"Your changes are saved.":"Saved.", "ok"); }
+    if(ADMIN_VIEW){ setStatus("send_status","Saved to her record.","ok"); }
+    else if(paymentStatus==="paid"){ setStatus("send_status", wasPaid?"Your changes are saved.":"Saved.", "ok"); }
     else { busy(false); renderPaidState(); await startPayment(); }
   }catch(e){
     if(e.code==="not_found"){ token=""; try{localStorage.removeItem(TOKEN_KEY);}catch(_){} setStatus("send_status","That edit link is no longer valid. Tap the button again to submit as a new entry.","bad"); }
@@ -981,13 +994,15 @@ function clearDevice(){ try{localStorage.removeItem(KEY);localStorage.removeItem
 function boot(){
   renderKraList(); renderSig(); show(state.step); renderPaidState();
   if(token){
+    if(LINK_TOKEN && !(draft && draft.token===token)){ setSaveBar("wait", ADMIN_VIEW ? "Loading her saved answers…" : "Loading your saved answers…"); document.body.classList.add("loading"); }
     api("load",{token}).then(r=>{
+      document.body.classList.remove("loading");
       const keepLocal = draft && draft.unsynced && draft.token===token;
       if(!keepLocal){ setFromData(r.data||{}); unsynced=false; }
       paymentStatus=r.payment_status; txRef=r.tx_ref; rememberToken(token); renderKraList(); show(state.step); renderPaidState(); saveDraft(false);
       if(keepLocal) autosave(); else setSaveBar("ok","Your saved answers are loaded. Changes save online automatically.");
     })
-    .catch(e=>{ if(e.code==="not_found"||e.code==="bad_token"){ token=""; try{localStorage.removeItem(TOKEN_KEY);}catch(_){} renderPaidState(); } else setSaveBar("off","Couldn't reach the server. Your answers on this phone are safe."); });
+    .catch(e=>{ document.body.classList.remove("loading"); if(e.code==="not_found"||e.code==="bad_token"){ token=""; try{localStorage.removeItem(TOKEN_KEY);}catch(_){} renderPaidState(); } else setSaveBar("off","Couldn't reach the server. Your answers on this phone are safe."); });
   } else if(unsynced) scheduleAutosave(500);
 }
 const draft=loadDraft();
