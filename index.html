@@ -197,6 +197,7 @@ footer.note{color:var(--muted);font-size:13px;margin-top:18px;text-align:center}
   <header class="top">
     <div class="eyebrow" id="top_eyebrow">UCH Ibadan · Clinical Nursing · EPMS 2025</div>
     <div class="banner" id="edit_banner" hidden></div>
+    <div class="banner" id="auto_banner" hidden></div>
     <div class="gate" id="who_gate" hidden role="dialog" aria-labelledby="who_h">
       <h2 id="who_h">Is this you?</h2>
       <p>This phone or computer already has an EPMS form in progress for <b id="who_name">someone</b>.</p>
@@ -597,7 +598,7 @@ function person(p){ return {surname:val(p+"_surname"),first_name:val(p+"_first")
 function collect(){
   const emp=Object.assign(person("emp"),{department:val("emp_department"),unit:val("emp_unit")});
   const byId=Object.fromEntries(state.kras.map(k=>[kraId(k),k]));
-  return {form:"UCH-EPMS-DETAILS",version:1,year:Number(YEAR),employee:emp,supervisor:person("sup"),countersigning_officer:person("cso"),
+  return {...(state.keep.rest||{}), form:"UCH-EPMS-DETAILS",version:1,year:Number(YEAR),employee:emp,supervisor:person("sup"),countersigning_officer:person("cso"),
     kras:state.kras.map(k=>Object.assign({code:k.code,kra:k.text}, k.custom?{custom:k.custom}:{})),
     ...(state.keep.source?{source:state.keep.source}:{}), ...(state.keep.quarterly?{quarterly:state.keep.quarterly}:{}), ...(state.keep.contract?{contract:state.keep.contract}:{}), ...(state.keep.ofc?{objectives_from_contract:true}:{}),
     monthly:MONTHS.map((name,mi)=>({month:name, ...(state.keep.mc&&state.keep.mc[mi]?{appraisee_comment:state.keep.mc[mi]}:{}), rows:state.months[mi].filter((r,i)=>i<2||r.k||r.s||r.i).map(r=>({code:r.k?byId[r.k].code:"",kra:r.k?byId[r.k].text:"",output:r.s.trim(),issues:r.i.trim()}))})),
@@ -670,6 +671,11 @@ function renderPaidState(){
     $("pay_title").textContent = "Submit your details";
     $("submit_btn").innerHTML = "Save and pay &#8358;" + priceFmt(CONFIG.PRICE);
   }
+  const af=state.keep&&state.keep.rest&&state.keep.rest.autofill, ab=$("auto_banner");
+  if(af && af.at && (af.months_filled&&af.months_filled.length || af.results_filled || (af.extras_filled&&af.extras_filled.length))){
+    const m=af.months_filled||[]; ab.hidden=false; ab.className="banner";
+    ab.textContent=`To save you time, we filled the parts of your form that were empty${m.length?` (${m.length===12?"all 12 months":m.length>3?m[0]+" to "+m[m.length-1]:m.join(", ")})`:""} using the tasks you chose. Please look through Monthly figures and About your year, and change anything that isn't right for you.`;
+  } else ab.hidden=true;
   const bn=$("edit_banner");
   if(ADMIN_VIEW){ const nm=[$("emp_first").value,$("emp_surname").value].filter(Boolean).join(" ")||"this nurse";
     bn.hidden=false; bn.className="banner warn"; bn.textContent=`Admin view: you're looking at ${nm}'s form (${paid?"paid":"not paid"}). Changes you make save to her record. Nothing is stored on this device.`;
@@ -684,7 +690,10 @@ function setFromData(d){
   setP("emp",d.employee); setP("sup",d.supervisor); setP("cso",d.countersigning_officer);
   if(d.employee){ $("emp_department").value=d.employee.department||"Clinical Nursing"; $("emp_unit").value=d.employee.unit||""; }
   state.kras=(d.kras||[]).map(k=>Object.assign({code:k.code,text:k.kra}, k.custom?{custom:k.custom}:{})); registerCustom(state.kras);
-  state.keep={source:d.source, quarterly:d.quarterly, contract:d.contract, ofc:!!d.objectives_from_contract, mc:(d.monthly||[]).map(m=>(m&&m.appraisee_comment)||"")};
+  // anything the form doesn't edit itself (admin settings, auto-complete record, comments) is carried through untouched
+  const OWN=["form","version","year","employee","supervisor","countersigning_officer","kras","monthly","extras","signature","supervisor_signature","cso_signature"];
+  const rest={}; Object.keys(d||{}).forEach(k=>{ if(!OWN.includes(k)) rest[k]=d[k]; });
+  state.keep={rest, source:d.source, quarterly:d.quarterly, contract:d.contract, ofc:!!d.objectives_from_contract, mc:(d.monthly||[]).map(m=>(m&&m.appraisee_comment)||"")};
   state.months=MONTHS.map((_,mi)=>{ const m=(d.monthly||[])[mi]; return [0,1,2,3,4].map(ri=>{ const r=m&&m.rows&&m.rows[ri]; return r?{k:r.kra?(r.code+"|"+r.kra):"",s:r.output||"",i:r.issues||""}:{k:"",s:"",i:""}; }); });
   const x=d.extras||{}; $("x_outstanding").value=x.outstanding_performance||""; $("x_improve").value=x.areas_of_improvement||""; $("x_training").value=x.training_needs||""; $("x_goals").value=x.future_goals||""; $("x_other").value=x.other_feedback||"";
   const pick=s=>(s && s.approved && typeof s.png==="string") ? s.png : "";
@@ -894,6 +903,10 @@ async function verifyPayment(transactionId){
   }
   return false;
 }
+// after a payment is confirmed the server may have completed empty parts of the form: show her the saved version
+async function reloadFromServer(){
+  try{ const r=await api("load",{token}); if(r && r.data){ setFromData(r.data); unsynced=false; saveDraft(false); renderKraList(); show(state.step); renderPaidState(); } }catch(e){}
+}
 async function startPayment(){
   const d=collect();
   if(!CONFIG.FLW_PUBLIC_KEY || CONFIG.FLW_PUBLIC_KEY.startsWith("__") || paymentsReady===false){
@@ -917,7 +930,7 @@ async function startPayment(){
       settled=true; try{ modal && modal.close && modal.close(); }catch(e){}
       setStatus("send_status","Confirming your payment…","");
       const ok = await verifyPayment(resp && resp.transaction_id);
-      if(ok){ paymentStatus="paid"; renderPaidState(); setStatus("send_status","Payment confirmed. Thank you.","ok"); $("done_box").scrollIntoView({behavior:"smooth",block:"start"}); }
+      if(ok){ paymentStatus="paid"; renderPaidState(); reloadFromServer(); setStatus("send_status","Payment confirmed. Thank you.","ok"); $("done_box").scrollIntoView({behavior:"smooth",block:"start"}); }
       else { renderPaidState(); showPending(); }
     },
     onclose: async () => {
@@ -925,7 +938,7 @@ async function startPayment(){
       // a transfer may have been made without the window reporting back: check before saying anything
       setStatus("send_status","Checking whether a payment came through…","");
       const ok = await verifyPayment(null);
-      if(ok){ paymentStatus="paid"; renderPaidState(); setStatus("send_status","Payment confirmed. Thank you.","ok"); }
+      if(ok){ paymentStatus="paid"; renderPaidState(); reloadFromServer(); setStatus("send_status","Payment confirmed. Thank you.","ok"); }
       else setStatus("send_status","No payment has come through yet. Your details are saved. If you made a transfer, don't pay again: reopen your edit link in a few minutes and it will show as confirmed. Otherwise tap the button to pay.","");
     }
   });

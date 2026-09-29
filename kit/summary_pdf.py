@@ -240,11 +240,27 @@ def summary(data, out_path, compact=0):
         t, code, text, used = tasks[key]
         rows.append([Paragraph((f"<b>{label[key]}</b> · " if (grid or listing) else "") + esc(code), S_CELLB), Paragraph(esc(short_task(text, 72 if listing else 95)), S_CELL),
                      Paragraph(esc(t.target_text()) if t else '—', S_CELL), Paragraph('All 12 months' if len(set(used)) == 12 else (f"{len(set(used))} months" if listing else ', '.join(dict.fromkeys(used))), S_CELL)])
-    tt = Table(rows, colWidths=([W * 0.16, W * 0.62, W * 0.11, W * 0.11] if listing else [W * 0.13, W * 0.55, W * 0.13, W * 0.19]), repeatRows=1)
-    tt.setStyle(TableStyle([('BACKGROUND', (0, 0), (-1, 0), GREEN), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F5F7F2')]),
-                            ('LINEBELOW', (0, 1), (-1, -1), 0.3, LINE), ('TOPPADDING', (0, 0), (-1, -1), 1.6),
-                            ('BOTTOMPADDING', (0, 0), (-1, -1), 1.6)]))
+    tstyle = TableStyle([('BACKGROUND', (0, 0), (-1, 0), GREEN), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                         ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F5F7F2')]),
+                         ('LINEBELOW', (0, 1), (-1, -1), 0.3, LINE), ('TOPPADDING', (0, 0), (-1, -1), 1.6),
+                         ('BOTTOMPADDING', (0, 0), (-1, -1), 1.6)])
+    if len(order) > 12 and compact >= 1:
+        # a long task list sits in two side-by-side columns so the page keeps to one sheet
+        SC = st('tc2', 6.4, 7.6)
+        half = (len(order) + 1) // 2
+        def col(keys):
+            rr = [[Paragraph(h, S_HEAD) for h in ("Code", "Task", "Target")]]
+            for key in keys:
+                t, code, text, used = tasks[key]
+                tgt = (t.target_text() if t else '—').split(' (')[0]
+                rr.append([Paragraph(f"<b>{label[key]}</b> " + esc(code), SC), Paragraph(esc(short_task(text, 40)), SC), Paragraph(esc(tgt), SC)])
+            tb = Table(rr, colWidths=[W * 0.13, W * 0.27, W * 0.09]); tb.setStyle(tstyle)
+            tb.setStyle(TableStyle([('TOPPADDING', (0, 0), (-1, -1), 0.8), ('BOTTOMPADDING', (0, 0), (-1, -1), 0.8)])); return tb
+        tt = Table([[col(order[:half]), col(order[half:])]], colWidths=[W * 0.5, W * 0.5])
+        tt.setStyle(TableStyle([('VALIGN', (0, 0), (-1, -1), 'TOP'), ('LEFTPADDING', (0, 0), (-1, -1), 0), ('RIGHTPADDING', (0, 0), (-1, -1), 3)]))
+    else:
+        tt = Table(rows, colWidths=([W * 0.16, W * 0.62, W * 0.11, W * 0.11] if listing else [W * 0.13, W * 0.55, W * 0.13, W * 0.19]), repeatRows=1)
+        tt.setStyle(tstyle)
     story.append(tt)
 
     # ---- month by month

@@ -438,7 +438,7 @@ function render(){
   const list = S.filter(pass).sort((a,b)=> a.s.rank-b.s.rank || T(b.r.data_updated_at||b.r.created_at)-T(a.r.data_updated_at||a.r.created_at));
   $("rows").innerHTML = `<div class="row head"><div>Nurse</div><div>Status</div><div>Progress</div><div>Last activity</div></div>` +
     (list.length ? list.map(({r,s,p})=>`<div class="row" data-id="${r.id}" tabindex="0">
-      <div><b>${esc(full(r))}</b>${r.is_test?' <span class="badge b-grey">test</span>':''}${r.complimentary?' <span class="badge b-blue">free</span>':''}${r.source==="admin"?' <span class="badge b-grey">added by you</span>':''}${r.archived?' <span class="badge b-grey">archived</span>':''}<div class="small muted">${esc([r.designation, r.unit, r.ippis && "IPPIS "+r.ippis].filter(Boolean).join(" · "))}</div></div>
+      <div><b>${esc(full(r))}</b>${r.is_test?' <span class="badge b-grey">test</span>':''}${r.complimentary?' <span class="badge b-blue">free</span>':''}${r.source==="admin"?' <span class="badge b-grey">added by you</span>':''}${r.archived?' <span class="badge b-grey">archived</span>':''}${r.autofill&&r.autofill.at?' <span class="badge b-blue">auto-completed</span>':''}<div class="small muted">${esc([r.designation, r.unit, r.ippis && "IPPIS "+r.ippis].filter(Boolean).join(" · "))}</div></div>
       <div><span class="badge ${s.cls}">${esc(s.label)}</span>${r.payment_status==="paid"?`<div class="small muted">${naira(r.amount_paid)} · ${ago(r.paid_at)}</div>`:""}</div>
       <div class="small">${p.filled}/12 months${p.blanks?` · <span style="color:var(--danger)">${p.blanks} blank</span>`:""}<div class="bar"><i style="width:${Math.round(p.filled/12*100)}%"></i></div></div>
       <div class="small muted">${ago(r.data_updated_at||r.created_at)}</div></div>`).join("")
@@ -501,6 +501,10 @@ async function openDetail(id, quiet){
     <div class="sec"><h3>Where she is</h3>
       <div class="months" style="margin:8px 0">${months}</div>
       <ul class="miss">${L.join("")}</ul>
+      <div class="found" style="margin-top:10px">${autoLine(r)}
+        <div class="acts" style="margin-top:8px"><button class="btn small ${p.complete?"":"primary"}" data-act="autofill" data-id="${r.id}">${p.complete?"Check again for empty parts":"Fill the empty parts from her tasks"}</button></div>
+        <p class="small muted" style="margin:6px 0 0">Uses the tasks she chose and each task's target in the master. Only empty months, results, issues and “about your year” answers are filled; nothing she typed is changed. It runs by itself once, as soon as she pays or you make her complimentary.</p>
+      </div>
     </div>
 
     <div class="sec"><h3>Payment</h3>
@@ -591,6 +595,14 @@ async function openDetail(id, quiet){
     paintDetail(r, DET);
   }catch(e){ if(openId===id){ $("d_answers").innerHTML = `<p class="err">Couldn't load her answers. Tap Refresh.</p>`; $("d_feed").innerHTML=""; } }
 }
+function autoLine(r){
+  const a = r.autofill;
+  if(!a || !a.at) return `<b>Auto-complete:</b> not run yet.`;
+  const bits = [a.months_filled&&a.months_filled.length ? `${a.months_filled.length} empty month(s) filled (${esc(a.months_filled.length>3 ? a.months_filled[0]+" to "+a.months_filled[a.months_filled.length-1] : a.months_filled.join(", "))})` : "",
+    a.results_filled ? `${a.results_filled} result(s) written` : "", a.extras_filled&&a.extras_filled.length ? `${a.extras_filled.length} year answer(s)` : ""].filter(Boolean);
+  return `<b>Auto-completed</b> ${when(a.at)} ${a.by==="admin"?"(you ran it)":"(after payment)"}: ${bits.join(", ")||"nothing was empty"}.` +
+    (a.missing_priority&&a.missing_priority.length ? `<br><span style="color:var(--danger)">Still needs from her: ${esc(a.missing_priority.join(", "))}.</span>` : "");
+}
 function renderFound(f){
   if(!f.configured) return `<div class="found">Flutterwave isn't configured on the server.</div>`;
   if(!f.found.length) return `<div class="found">Flutterwave has <b>no payment</b> for her yet (searched ${esc(f.searched.join(", "))}). If she says she paid, ask for a screenshot of the debit and check again in a few minutes.</div>`;
@@ -642,7 +654,11 @@ async function act(kind, id, btn){
       if(!(amount>0)){ toast("Enter the amount you received"); if(btn) btn.disabled=false; return; }
       if(!note){ toast("Add a short note on how you confirmed it"); $("d_pnote").focus(); if(btn) btn.disabled=false; return; }
       if(!confirm(`Confirm that ${naira(amount)} was received from this nurse?`)){ if(btn) btn.disabled=false; return; }
-      await call("mark_paid", {id, amount, note}); toast("Payment confirmed"); }
+      const mp = await call("mark_paid", {id, amount, note}); toast(mp.autofill && mp.autofill.changed ? "Payment confirmed. Her empty months were filled from her tasks." : "Payment confirmed"); }
+    else if(kind==="autofill"){ if(!confirm("Fill the empty parts of her form from the tasks she chose? Nothing she typed will change.")){ if(btn) btn.disabled=false; return; }
+      if(btn) btn.textContent="Filling…";
+      const r = await call("autofill", {id}); const rp = r.report||{};
+      toast(rp.changed ? `Done: ${rp.months_filled.length} month(s), ${rp.results_filled} result(s), ${rp.extras_filled.length} year answer(s) filled` : (rp.note || "Nothing was empty")); }
     else if(kind==="unmark_paid"){ if(!confirm("Undo your manual payment confirmation?")){ if(btn) btn.disabled=false; return; } await call("unmark_paid", {id}); toast("Manual confirmation undone"); }
     else if(kind==="note"){ await call("set", {id, fields:{admin_note: $("d_note").value}}); toast("Note saved"); }
     else { if(kind==="archive" && !confirm("Archive this record? It will be hidden from your lists (you can restore it with “Include archived”).")) { if(btn) btn.disabled=false; return; }

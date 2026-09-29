@@ -7,9 +7,13 @@
 // - verify / check: confirm a Flutterwave payment server-side and mark the submission paid
 // - /webhook: optional Flutterwave webhook (not used while the Flutterwave account is shared)
 // - admin:   owner's dashboard (passcode-protected, with sign-in lockout): overview, detail (full record), set, recheck
-//            (deep Flutterwave search with findings), mark_paid / unmark_paid (manual confirmation), create, change_key
+//            (deep Flutterwave search with findings), mark_paid / unmark_paid (manual confirmation), create, change_key,
+//            autofill (complete the empty parts of her form from the tasks she chose; preview or save)
+// - auto-complete: as soon as a payment is confirmed (or she is made complimentary), the empty parts of her
+//   form are filled from her own tasks, once; anything she typed is kept. See autofill.ts.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { autofill } from "./autofill.ts";
 
 const PRICE = Number(Deno.env.get("EPMS_PRICE") ?? "3500");
 const CURRENCY = "NGN";
@@ -67,6 +71,7 @@ async function markPaidIfValid(row: any, tx: any) {
       flw_transaction_id: String(tx.id), paid_at: new Date().toISOString(), payment_method: "flutterwave",
     }).eq("id", row.id);
     if (error) return { ok: false, reason: "db_error" };
+    try { await autoComplete(row.id, "auto"); } catch (_) { /* never block a payment on this */ }
   }
   return { ok: true };
 }
@@ -143,6 +148,29 @@ async function rowByToken(token: string) {
   return data;
 }
 
+// Fill the empty parts of her form from the tasks she chose. "auto" runs once per nurse (after payment);
+// "admin" runs whenever the owner asks. Returns the report, or null when nothing was done.
+async function autoComplete(id: string, by: "auto" | "admin") {
+  const { data: row } = await db.from("epms_submissions").select("id, data, first_name, surname").eq("id", id).maybeSingle();
+  if (!row?.data) return null;
+  if (by === "auto" && row.data.autofill) return null;
+  const { data: filled, report } = autofill(row.data);
+  const stamp = { at: new Date().toISOString(), by, months_filled: report.months_filled, rows_added: report.rows_added,
+    results_filled: report.results_filled, issues_written: report.issues_written, extras_filled: report.extras_filled,
+    missing_priority: report.missing_priority, note: report.note ?? null };
+  const runs = Array.isArray(row.data.autofill?.runs) ? row.data.autofill.runs.slice(-9) : [];
+  const next = { ...filled, autofill: { ...stamp, runs: [...runs, stamp] } };
+  const { error } = await db.from("epms_submissions").update({ data: next }).eq("id", id);
+  if (error) return null;
+  const who = [row.first_name, row.surname].filter(Boolean).join(" ") || "A nurse";
+  const parts = [report.months_filled.length ? `${report.months_filled.length} empty month(s) filled` : "",
+    report.results_filled ? `${report.results_filled} result(s)` : "", report.extras_filled.length ? `${report.extras_filled.length} year answer(s)` : ""].filter(Boolean);
+  await db.from("epms_events").insert({ submission_id: id, kind: "admin",
+    detail: report.changed ? `Form auto-completed for ${who}: ${parts.join(", ") || "small gaps filled"}` + (report.missing_priority.length ? `. Still needs: ${report.missing_priority.join(", ")}` : "")
+      : `Auto-complete checked ${who}'s form: nothing was empty` + (report.note ? ` (${report.note})` : "") });
+  return report;
+}
+
 // ---------- admin ----------
 const b64 = (u: Uint8Array) => btoa(String.fromCharCode(...u));
 const unb64 = (s: string) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
@@ -181,7 +209,7 @@ const ADMIN_COLS = "id, edit_token, tx_ref, surname, first_name, ippis, phone, e
   "paid_at, filled_at, delivered_at, admin_note, complimentary, is_test, source, created_at, data_updated_at, last_tx_ref, last_checked_at, fill_notes, " +
   "designation:data->employee->>designation, other_name:data->employee->>other_name, monthly:data->monthly, kras:data->kras, extras:data->extras, " +
   "sup:data->supervisor, cso:data->countersigning_officer, sig_me:data->signature->approved, sig_sup:data->supervisor_signature->approved, " +
-  "sig_cso:data->cso_signature->approved, tx_refs, payment_method, payment_note, archived";
+  "sig_cso:data->cso_signature->approved, tx_refs, payment_method, payment_note, archived, autofill:data->autofill";
 
 async function admin(req: Request, body: any) {
   const ip = clientIp(req);
@@ -223,7 +251,19 @@ async function admin(req: Request, body: any) {
     if (typeof f.archived === "boolean") up.archived = f.archived;
     if (!Object.keys(up).length) return json({ error: "nothing_to_change" }, 400);
     const { error } = await db.from("epms_submissions").update(up).eq("id", id);
-    return error ? json({ error: "db_error" }, 500) : json({ ok: true });
+    if (error) return json({ error: "db_error" }, 500);
+    const report = f.complimentary === true ? await autoComplete(id, "auto").catch(() => null) : null;
+    return json({ ok: true, autofill: report });
+  }
+  if (op === "autofill" && id) {
+    if (body.preview) {
+      const { data: row } = await db.from("epms_submissions").select("data").eq("id", id).maybeSingle();
+      if (!row) return json({ error: "not_found" }, 404);
+      const { data, report } = autofill(row.data);
+      return json({ preview: true, report, monthly: data.monthly, extras: data.extras });
+    }
+    const report = await autoComplete(id, "admin");
+    return report ? json({ ok: true, report }) : json({ error: "not_found" }, 404);
   }
   if (op === "recheck" && id) {
     const { data: row } = await db.from("epms_submissions").select("*").eq("id", id).maybeSingle();
@@ -242,7 +282,9 @@ async function admin(req: Request, body: any) {
     if (row.payment_status === "paid") return json({ ok: true, already: true });
     const { error } = await db.from("epms_submissions").update({ payment_status: "paid", amount_paid: amount, currency: CURRENCY,
       paid_at: new Date().toISOString(), payment_method: "manual", payment_note: note, flw_transaction_id: null }).eq("id", id);
-    return error ? json({ error: "db_error" }, 500) : json({ ok: true });
+    if (error) return json({ error: "db_error" }, 500);
+    const report = await autoComplete(id, "auto").catch(() => null);
+    return json({ ok: true, autofill: report });
   }
   if (op === "unmark_paid" && id) {
     // only a manual confirmation can be undone here; a Flutterwave-verified payment stays
@@ -347,11 +389,11 @@ Deno.serve(async (req) => {
     if (!UUID.test(body.token ?? "")) return json({ error: "bad_token" }, 400);
     const row = await rowByToken(body.token);
     if (!row) return json({ error: "not_found" }, 404);
-    let status = row.payment_status;
+    let status = row.payment_status, data = row.data;
     if (status !== "paid" && (row.last_tx_ref || row.email)) {
-      if ((await reconcile(row)).paid) status = "paid";
+      if ((await reconcile(row)).paid) { status = "paid"; data = (await rowByToken(body.token))?.data ?? data; }
     }
-    return json({ data: row.data, tx_ref: row.tx_ref, payment_status: status, updated_at: row.updated_at });
+    return json({ data, tx_ref: row.tx_ref, payment_status: status, updated_at: row.updated_at });
   }
 
   if (action === "verify" || action === "check") {
