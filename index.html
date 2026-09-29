@@ -599,7 +599,7 @@ function collect(){
   const byId=Object.fromEntries(state.kras.map(k=>[kraId(k),k]));
   return {form:"UCH-EPMS-DETAILS",version:1,year:Number(YEAR),employee:emp,supervisor:person("sup"),countersigning_officer:person("cso"),
     kras:state.kras.map(k=>Object.assign({code:k.code,kra:k.text}, k.custom?{custom:k.custom}:{})),
-    ...(state.keep.source?{source:state.keep.source}:{}), ...(state.keep.quarterly?{quarterly:state.keep.quarterly}:{}), ...(state.keep.contract?{contract:state.keep.contract}:{}),
+    ...(state.keep.source?{source:state.keep.source}:{}), ...(state.keep.quarterly?{quarterly:state.keep.quarterly}:{}), ...(state.keep.contract?{contract:state.keep.contract}:{}), ...(state.keep.ofc?{objectives_from_contract:true}:{}),
     monthly:MONTHS.map((name,mi)=>({month:name, ...(state.keep.mc&&state.keep.mc[mi]?{appraisee_comment:state.keep.mc[mi]}:{}), rows:state.months[mi].filter((r,i)=>i<2||r.k||r.s||r.i).map(r=>({code:r.k?byId[r.k].code:"",kra:r.k?byId[r.k].text:"",output:r.s.trim(),issues:r.i.trim()}))})),
     extras:{outstanding_performance:val("x_outstanding"),areas_of_improvement:val("x_improve"),training_needs:val("x_training"),future_goals:val("x_goals"),other_feedback:val("x_other")},
     signature: state.sigs.me ? {png:state.sigs.me, approved:true} : null,
@@ -684,7 +684,7 @@ function setFromData(d){
   setP("emp",d.employee); setP("sup",d.supervisor); setP("cso",d.countersigning_officer);
   if(d.employee){ $("emp_department").value=d.employee.department||"Clinical Nursing"; $("emp_unit").value=d.employee.unit||""; }
   state.kras=(d.kras||[]).map(k=>Object.assign({code:k.code,text:k.kra}, k.custom?{custom:k.custom}:{})); registerCustom(state.kras);
-  state.keep={source:d.source, quarterly:d.quarterly, contract:d.contract, mc:(d.monthly||[]).map(m=>(m&&m.appraisee_comment)||"")};
+  state.keep={source:d.source, quarterly:d.quarterly, contract:d.contract, ofc:!!d.objectives_from_contract, mc:(d.monthly||[]).map(m=>(m&&m.appraisee_comment)||"")};
   state.months=MONTHS.map((_,mi)=>{ const m=(d.monthly||[])[mi]; return [0,1,2,3,4].map(ri=>{ const r=m&&m.rows&&m.rows[ri]; return r?{k:r.kra?(r.code+"|"+r.kra):"",s:r.output||"",i:r.issues||""}:{k:"",s:"",i:""}; }); });
   const x=d.extras||{}; $("x_outstanding").value=x.outstanding_performance||""; $("x_improve").value=x.areas_of_improvement||""; $("x_training").value=x.training_needs||""; $("x_goals").value=x.future_goals||""; $("x_other").value=x.other_feedback||"";
   const pick=s=>(s && s.approved && typeof s.png==="string") ? s.png : "";
