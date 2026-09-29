@@ -1,0 +1,540 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>EPMS Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&display=swap">
+<style>
+:root{
+  --bg:#F3F5F1; --surface:#FFFFFF; --surface-2:#EEF2EA; --ink:#1B2419; --ink-2:#4A5646; --muted:#6B7667;
+  --line:#D5DCCF; --green:#3E6B2B; --green-ink:#FFFFFF; --green-soft:#E3ECDC; --amber:#F2B705; --amber-soft:#FFF4CC;
+  --amber-ink:#3A2C00; --danger:#B3261E; --danger-soft:#FBE9E7; --focus:#1F5FBF; --ok:#2E7D32; --blue-soft:#E4ECF8; --blue-ink:#1F3F7A;
+  --radius:10px; --shadow:0 1px 2px rgba(27,36,25,.06),0 4px 16px rgba(27,36,25,.05);
+  --serif:"Source Serif 4",Georgia,"Times New Roman",serif; --sans:"Public Sans",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#131811; --surface:#1B2219; --surface-2:#222B20; --ink:#E7EDE3; --ink-2:#BCC7B6; --muted:#98A393;
+    --line:#35412F; --green:#7DB35F; --green-ink:#10180C; --green-soft:#26361E; --amber:#F2C230; --amber-soft:#3A3113;
+    --amber-ink:#FFE9A3; --danger:#F2867D; --danger-soft:#3A1D1A; --focus:#8AB4FF; --ok:#8BD08F; --blue-soft:#1C2A40; --blue-ink:#BFD3F5;
+    --shadow:0 1px 2px rgba(0,0,0,.3); color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#131811; --surface:#1B2219; --surface-2:#222B20; --ink:#E7EDE3; --ink-2:#BCC7B6; --muted:#98A393;
+  --line:#35412F; --green:#7DB35F; --green-ink:#10180C; --green-soft:#26361E; --amber:#F2C230; --amber-soft:#3A3113;
+  --amber-ink:#FFE9A3; --danger:#F2867D; --danger-soft:#3A1D1A; --focus:#8AB4FF; --ok:#8BD08F; --blue-soft:#1C2A40; --blue-ink:#BFD3F5;
+  --shadow:0 1px 2px rgba(0,0,0,.3); color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.45;padding:0 16px 60px}
+.wrap{max-width:1180px;margin:0 auto}
+[hidden]{display:none!important}
+h1{font-family:var(--serif);font-size:clamp(24px,4vw,30px);margin:0;line-height:1.15}
+h2{font-family:var(--serif);font-size:20px;margin:0}
+h3{font-size:15px;margin:0}
+a{color:var(--green)}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+.btn{font:inherit;font-weight:700;border-radius:9px;padding:9px 14px;min-height:40px;cursor:pointer;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+.btn.primary{background:var(--green);border-color:var(--green);color:var(--green-ink)}
+.btn.small{padding:5px 10px;min-height:32px;font-size:13.5px;font-weight:600}
+.btn.ghost{background:transparent}
+.btn.warn{border-color:var(--danger);color:var(--danger)}
+.btn:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
+input,textarea,select{font:inherit;color:var(--ink);background:var(--surface);border:1.5px solid var(--line);border-radius:9px;padding:9px 11px;width:100%}
+textarea{min-height:70px;resize:vertical}
+
+/* sign-in */
+.login{max-width:420px;margin:12vh auto 0;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:22px;box-shadow:var(--shadow);display:grid;gap:12px}
+.login .eyebrow,.eyebrow{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--green);font-weight:700}
+.check{display:flex;gap:8px;align-items:center;font-size:14px}
+.check input{width:18px;height:18px}
+.err{color:var(--danger);font-size:14px;font-weight:600;min-height:1.2em}
+
+/* top bar */
+.top{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;padding:20px 0 12px}
+.top .right{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.updated{font-size:13px;color:var(--muted)}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--ok);display:inline-block;margin-right:6px}
+.dot.off{background:var(--danger)}
+
+/* tiles */
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:6px 0 18px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;cursor:pointer;text-align:left;font:inherit;color:inherit}
+.tile b{display:block;font-size:26px;line-height:1.1;font-variant-numeric:tabular-nums}
+.tile span{font-size:13px;color:var(--ink-2)}
+.tile.alert{border-color:var(--danger);background:var(--danger-soft)}
+.tile.alert b{color:var(--danger)}
+.tile.todo{border-color:var(--amber);background:var(--amber-soft)}
+.tile.todo b,.tile.todo span{color:var(--amber-ink)}
+
+/* layout */
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:18px;align-items:start}
+@media (max-width:980px){ .grid2{grid-template-columns:1fr} }
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;box-shadow:var(--shadow)}
+.panel + .panel{margin-top:18px}
+.panel-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+
+/* attention */
+.bucket{border-left:4px solid var(--line);padding:8px 0 8px 12px;margin:10px 0}
+.bucket.red{border-color:var(--danger)} .bucket.amber{border-color:var(--amber)} .bucket.blue{border-color:var(--focus)} .bucket.grey{border-color:var(--muted)}
+.bucket h3{display:flex;gap:8px;align-items:center}
+.bucket .why{font-size:13px;color:var(--ink-2);margin:2px 0 6px}
+.count{font-size:12px;font-weight:700;border-radius:99px;padding:1px 8px;background:var(--surface-2);color:var(--ink-2)}
+.person{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;justify-content:space-between;padding:8px 0;border-top:1px solid var(--line)}
+.person:first-of-type{border-top:0}
+.person .who{cursor:pointer;min-width:0}
+.person .who b{display:block}
+.person .acts{display:flex;gap:6px;flex-wrap:wrap}
+.allclear{background:var(--green-soft);border-radius:10px;padding:12px 14px;font-weight:600}
+
+/* list */
+.filters{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+.chip{font:inherit;font-size:13px;font-weight:600;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:99px;padding:4px 11px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--green);border-color:var(--green);color:var(--green-ink)}
+.rows{display:grid;gap:0}
+.row{display:grid;grid-template-columns:minmax(0,2.2fr) minmax(0,1.2fr) minmax(0,1.3fr) minmax(0,1fr);gap:10px;align-items:center;padding:10px 6px;border-top:1px solid var(--line);cursor:pointer}
+.row:hover{background:var(--surface-2)}
+.row.head{cursor:default;font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;border-top:0}
+.row.head:hover{background:none}
+@media (max-width:640px){ .row{grid-template-columns:1fr 1fr} .row.head{display:none} }
+.badge{display:inline-block;font-size:12px;font-weight:700;border-radius:12px;padding:2px 9px;max-width:100%}
+.b-red{background:var(--danger-soft);color:var(--danger)}
+.b-amber{background:var(--amber-soft);color:var(--amber-ink)}
+.b-green{background:var(--green-soft);color:var(--green)}
+.b-blue{background:var(--blue-soft);color:var(--blue-ink)}
+.b-grey{background:var(--surface-2);color:var(--ink-2)}
+.bar{height:6px;border-radius:9px;background:var(--surface-2);overflow:hidden;margin-top:4px}
+.bar i{display:block;height:100%;background:var(--green)}
+
+/* feed */
+.feed{display:grid;gap:0;max-height:760px;overflow:auto}
+.ev{display:grid;grid-template-columns:22px 1fr;gap:8px;padding:7px 0;border-top:1px solid var(--line);font-size:14px}
+.ev:first-child{border-top:0}
+.ev .ic{font-size:14px;line-height:1.3}
+.ev time{display:block;font-size:12px;color:var(--muted)}
+.ev .lnk{cursor:pointer}
+.ev .lnk:hover{text-decoration:underline}
+
+/* detail drawer */
+.scrim{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:20}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(560px,100%);background:var(--bg);z-index:21;overflow:auto;padding:18px 16px 60px;box-shadow:-8px 0 30px rgba(0,0,0,.2)}
+.drawer .sec{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;margin-top:12px}
+.kv{display:grid;grid-template-columns:140px 1fr;gap:4px 10px;font-size:14px}
+.kv dt{color:var(--muted)} .kv dd{margin:0;word-break:break-word}
+.acts{display:flex;gap:6px;flex-wrap:wrap}
+.sigs{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
+.sigs figure{margin:0;border:1px solid var(--line);border-radius:8px;padding:6px;background:#fff;text-align:center}
+.sigs img{max-width:100%;max-height:60px}
+.sigs figcaption{font-size:12px;color:#555}
+.months{display:grid;grid-template-columns:repeat(6,1fr);gap:4px}
+.months span{font-size:12px;text-align:center;border-radius:6px;padding:3px 0;background:var(--surface-2);color:var(--muted)}
+.months span.full{background:var(--green-soft);color:var(--green);font-weight:700}
+.months span.half{background:var(--amber-soft);color:var(--amber-ink);font-weight:700}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:600;z-index:40;max-width:90vw}
+.help{font-size:13.5px;color:var(--ink-2);background:var(--surface-2);border-radius:10px;padding:10px 12px;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- sign-in -->
+  <form class="login" id="login" autocomplete="on">
+    <div class="eyebrow">UCH Nurses EPMS · Admin</div>
+    <h1>Sign in</h1>
+    <label for="pass" class="small muted">Admin passcode</label>
+    <input id="pass" type="password" autocomplete="current-password" required>
+    <label class="check"><input type="checkbox" id="remember"> Keep me signed in on this device</label>
+    <div class="err" id="login_err" role="alert"></div>
+    <button class="btn primary" id="login_btn" type="submit">Sign in</button>
+    <p class="small muted" style="margin:0">After 8 wrong tries, sign-in pauses for 15 minutes.</p>
+  </form>
+
+  <!-- dashboard -->
+  <main id="app" hidden>
+    <div class="top">
+      <div><div class="eyebrow">UCH Nurses EPMS 2025 · Admin</div><h1>What's happening</h1></div>
+      <div class="right">
+        <span class="updated"><span class="dot" id="live_dot"></span><span id="updated">Loading…</span></span>
+        <button class="btn small" id="refresh">Refresh</button>
+        <button class="btn small" id="csv">Download list (CSV)</button>
+        <button class="btn small ghost" id="settings_btn">Passcode</button>
+        <button class="btn small ghost" id="signout">Sign out</button>
+      </div>
+    </div>
+
+    <div class="tiles" id="tiles"></div>
+
+    <div class="grid2">
+      <div>
+        <section class="panel" id="attention_panel">
+          <div class="panel-head"><h2>Needs your attention</h2><label class="check small"><input type="checkbox" id="show_tests"> Include test profiles</label></div>
+          <div id="attention"></div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head"><h2>All nurses</h2><input id="search" type="search" placeholder="Search name, IPPIS, phone, unit…" style="max-width:280px"></div>
+          <div class="filters" id="filters"></div>
+          <div class="rows" id="rows"></div>
+        </section>
+      </div>
+
+      <aside class="panel">
+        <div class="panel-head"><h2>Activity</h2><span class="small muted" id="feed_count"></span></div>
+        <div class="feed" id="feed"></div>
+      </aside>
+    </div>
+  </main>
+</div>
+
+<!-- detail drawer -->
+<div class="scrim" id="scrim" hidden></div>
+<aside class="drawer" id="drawer" hidden role="dialog" aria-modal="true" aria-labelledby="d_name"></aside>
+
+<!-- passcode dialog -->
+<div class="scrim" id="pc_scrim" hidden></div>
+<aside class="drawer" id="pc" hidden role="dialog" aria-modal="true" aria-labelledby="pc_h" style="width:min(420px,100%)">
+  <div class="panel-head"><h2 id="pc_h">Change admin passcode</h2><button class="btn small ghost" id="pc_close">Close</button></div>
+  <div class="sec">
+    <label class="small muted" for="pc_new">New passcode (at least 10 characters)</label>
+    <input id="pc_new" type="password" autocomplete="new-password">
+    <label class="small muted" for="pc_new2" style="display:block;margin-top:8px">Type it again</label>
+    <input id="pc_new2" type="password" autocomplete="new-password">
+    <div class="err" id="pc_err"></div>
+    <button class="btn primary" id="pc_save">Save new passcode</button>
+    <p class="small muted">Anyone signed in elsewhere will be asked for the new passcode.</p>
+  </div>
+</aside>
+
+<div class="toast" id="toast" hidden role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+const FUNCTION_URL = "https://myebhfkovfmltoirptrl.supabase.co/functions/v1/epms-form";
+const FORM_URL = "https://buildnet6.github.io/uch-epms-form/";
+const SLA_HOURS = 6;
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const naira = n => "₦" + Number(n||0).toLocaleString("en-NG", {maximumFractionDigits:0});
+let KEY = "", DATA = null, filter = "all", openId = null, timer = null;
+
+// ---------- storage (wrapped: private windows may block it) ----------
+const store = {
+  get(){ try{ return sessionStorage.getItem("epms_admin") || localStorage.getItem("epms_admin") || ""; }catch(e){ return ""; } },
+  set(k, remember){ try{ sessionStorage.setItem("epms_admin", k); if(remember) localStorage.setItem("epms_admin", k); }catch(e){} },
+  clear(){ try{ sessionStorage.removeItem("epms_admin"); localStorage.removeItem("epms_admin"); }catch(e){} }
+};
+
+async function call(op, extra={}){
+  const r = await fetch(FUNCTION_URL, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({action:"admin", key:KEY, op, ...extra})});
+  let j = {}; try{ j = await r.json(); }catch(e){}
+  if(!r.ok){ const e = new Error(j.error || ("http_"+r.status)); e.code = j.error || r.status; throw e; }
+  return j;
+}
+function toast(msg){ const t=$("toast"); t.textContent=msg; t.hidden=false; clearTimeout(toast._t); toast._t=setTimeout(()=>t.hidden=true, 2600); }
+
+// ---------- sign in ----------
+$("login").addEventListener("submit", async e=>{
+  e.preventDefault(); $("login_err").textContent=""; $("login_btn").disabled=true;
+  KEY = $("pass").value.trim();
+  try{ await load(); store.set(KEY, $("remember").checked); showApp(); }
+  catch(err){ KEY=""; $("login_err").textContent = err.code==="locked" ? "Too many wrong tries. Wait 15 minutes, then try again." : err.code==="wrong_passcode" ? "That passcode isn't right." : "Couldn't reach the server. Check your connection."; }
+  $("login_btn").disabled=false;
+});
+function showApp(){ $("login").hidden=true; $("app").hidden=false; startTimer(); }
+function signOut(){ store.clear(); KEY=""; DATA=null; clearInterval(timer); $("app").hidden=true; $("login").hidden=false; $("pass").value=""; closeDrawer(); }
+$("signout").onclick = signOut;
+
+// ---------- data ----------
+async function load(){
+  const d = await call("overview");
+  DATA = d; render(); $("live_dot").classList.remove("off");
+  $("updated").textContent = "Updated " + new Date().toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"});
+  return d;
+}
+async function refresh(silent){
+  try{ await load(); if(openId) openDetail(openId, true); if(!silent) toast("Up to date"); }
+  catch(err){ if(err.code==="wrong_passcode"){ signOut(); $("login_err").textContent="Your passcode changed. Sign in again."; return; }
+    $("live_dot").classList.add("off"); $("updated").textContent="Offline. Retrying…"; }
+}
+function startTimer(){ clearInterval(timer); timer=setInterval(()=>{ if(document.visibilityState==="visible") refresh(true); }, 60000); }
+document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="visible" && KEY) refresh(true); });
+$("refresh").onclick = ()=>refresh(false);
+
+// ---------- understanding each nurse ----------
+const T = s => s ? new Date(s).getTime() : 0;
+const full = r => [r.first_name, r.other_name, r.surname].filter(Boolean).join(" ") || "(no name yet)";
+function progress(r){
+  const months = (r.monthly||[]).map(m => { const rows=(m.rows||[]); const n=rows.filter(x=>x.kra && String(x.output??"").trim()!=="").length; const chosen=rows.filter(x=>x.kra).length; return {n, chosen}; });
+  while(months.length<12) months.push({n:0,chosen:0});
+  const filled = months.filter(m=>m.n>0).length;
+  const blanks = months.reduce((a,m)=>a+Math.max(0,m.chosen-m.n),0);
+  const aboutMe = r.surname && r.first_name && r.ippis;
+  const sup = r.sup && r.sup.surname; const cso = r.cso && r.cso.surname;
+  return {months, filled, blanks, tasks:(r.kras||[]).length, aboutMe:!!aboutMe, sup:!!sup, cso:!!cso,
+          sigs:[r.sig_me?"nurse":"", r.sig_sup?"supervisor":"", r.sig_cso?"counter-signer":""].filter(Boolean)};
+}
+function stage(r){
+  const paid = r.payment_status==="paid", comp = r.complimentary, settled = paid || comp;
+  const edited = T(r.data_updated_at);
+  const now = T(DATA.now);
+  const since = T(r.paid_at) || T(r.created_at);
+  const hoursSincePaid = (now - since)/3.6e6;
+  if(settled){
+    if(r.delivered_at){
+      if(edited > T(r.delivered_at) + 60000) return {key:"resend", label:"Edited after sending", cls:"b-amber", rank:3};
+      return {key:"done", label:"Sent", cls:"b-green", rank:9};
+    }
+    const overdue = paid && hoursSincePaid > SLA_HOURS;   // the 6-hour promise applies to paying nurses
+    if(r.filled_at && edited <= T(r.filled_at) + 60000) return {key:"send", label: overdue?"Overdue: send workbook":"Ready to send", cls: overdue?"b-red":"b-blue", rank: overdue?0:2, overdue, hoursSincePaid};
+    if(r.filled_at) return {key:"regen", label: overdue?"Overdue: regenerate":"Edited: regenerate", cls: overdue?"b-red":"b-amber", rank: overdue?0:1, overdue, hoursSincePaid};
+    return {key:"gen", label: overdue?"Overdue: generate":"Paid: generate workbook", cls: overdue?"b-red":"b-amber", rank: overdue?0:1, overdue, hoursSincePaid};
+  }
+  if(r.last_tx_ref) return {key:"payfail", label:"Tried to pay, not confirmed", cls:"b-red", rank:4};
+  return {key:"filling", label:"Filling in / not paid", cls:"b-grey", rank:5};
+}
+const visible = () => (DATA?.rows||[]).filter(r => $("show_tests").checked || !r.is_test);
+const ago = s => { if(!s) return "—"; const m = Math.round((T(DATA.now) - T(s))/60000); if(m<1) return "just now"; if(m<60) return m+" min ago"; const h=Math.round(m/60); if(h<48) return h+" h ago"; return Math.round(h/24)+" days ago"; };
+const when = s => s ? new Date(s).toLocaleString([], {day:"numeric", month:"short", hour:"2-digit", minute:"2-digit"}) : "—";
+function waNumber(p){ let d=String(p||"").replace(/\D/g,""); if(d.startsWith("0")) d="234"+d.slice(1); if(d.length===10) d="234"+d; return d.length>=12 ? d : ""; }
+function editLink(r){ return FORM_URL + "?t=" + r.edit_token; }
+function waLink(r, kind){
+  const n = waNumber(r.phone); if(!n) return "";
+  const first = r.first_name || "there";
+  const msgs = {
+    filling: `Hello ${first}, this is BuildNET Digital Solutions. You started your UCH EPMS 2025 form but haven't finished it yet. You can continue exactly where you stopped here: ${editLink(r)} (this link is private to you). Any questions, just reply here.`,
+    payfail: `Hello ${first}, this is BuildNET Digital Solutions. We saw you tried to pay for your EPMS 2025 form, but the payment hasn't come through on our side yet. If you were debited, please reply with a screenshot of the debit and we'll confirm it right away. Otherwise you can try again here: ${editLink(r)}`,
+    done: `Hello ${first}, your completed EPMS 2025 workbook and one-page summary have been sent${r.email?" to "+r.email:""}. Please check your inbox (and spam folder). Reply here if anything needs changing.`,
+    general: `Hello ${first}, this is BuildNET Digital Solutions about your UCH EPMS 2025 form.`
+  };
+  return `https://wa.me/${n}?text=${encodeURIComponent(msgs[kind]||msgs.general)}`;
+}
+
+// ---------- render ----------
+function render(){
+  const rows = visible();
+  const S = rows.map(r=>({r, s:stage(r), p:progress(r)}));
+  const paid = S.filter(x=>x.r.payment_status==="paid" && !x.r.complimentary);
+  const revenue = paid.reduce((a,x)=>a+Number(x.r.amount_paid||0),0);
+  const todo = S.filter(x=>["gen","regen","send","resend"].includes(x.s.key));
+  const overdue = S.filter(x=>x.s.overdue);
+  const payfail = S.filter(x=>x.s.key==="payfail");
+  const tiles = [
+    ["all", rows.length, "Nurses who started", ""],
+    ["filling", S.filter(x=>x.s.key==="filling"||x.s.key==="payfail").length, "Not paid yet", ""],
+    ["paid", paid.length, "Paid · " + naira(revenue), ""],
+    ["todo", todo.length, "Workbooks to generate or send", todo.length?"todo":""],
+    ["overdue", overdue.length, `Past ${SLA_HOURS}-hour promise`, overdue.length?"alert":""],
+    ["done", S.filter(x=>x.s.key==="done").length, "Sent", ""],
+  ];
+  $("tiles").innerHTML = tiles.map(([k,n,l,c])=>`<button class="tile ${c}" data-filter="${k}"><b>${n}</b><span>${esc(l)}</span></button>`).join("");
+
+  // attention buckets
+  const now = T(DATA.now);
+  const stale = S.filter(x=>x.s.key==="filling" && (now - T(x.r.data_updated_at||x.r.created_at)) > 24*3.6e6);
+  const buckets = [
+    ["red", "Overdue: past the 6-hour promise", "Paid, but the workbook hasn't been sent within 6 hours. Handle these first.", overdue],
+    ["amber", "Generate or regenerate workbooks", "Paid (or complimentary) and waiting for their workbook, or edited since it was made. Ask Claude: “generate the pending EPMS workbooks”.", S.filter(x=>(x.s.key==="gen"||x.s.key==="regen") && !x.s.overdue)],
+    ["blue", "Ready to send", "Workbook generated. Send the workbook and summary, then tap “Mark sent”.", S.filter(x=>x.s.key==="send" && !x.s.overdue)],
+    ["amber", "Edited after sending", "She changed answers after you sent her workbook. Regenerate and resend if the change matters.", S.filter(x=>x.s.key==="resend")],
+    ["red", "Tried to pay, not confirmed", "Opened the checkout but no successful payment was found. Tap “Check payment” or message her.", payfail],
+    ["grey", "Started but quiet for over a day", "Started the form, not paid, no activity for 24+ hours. A friendly nudge often helps.", stale],
+  ].filter(b=>b[3].length);
+  $("attention").innerHTML = buckets.length ? buckets.map(([cls,title,why,list])=>`
+    <div class="bucket ${cls}"><h3>${esc(title)} <span class="count">${list.length}</span></h3><p class="why">${esc(why)}</p>
+    ${list.sort((a,b)=>T(a.r.paid_at||a.r.created_at)-T(b.r.paid_at||b.r.created_at)).map(x=>personLine(x)).join("")}</div>`).join("")
+    : `<div class="allclear">✓ Nothing needs you right now.</div>`;
+
+  // filters + list
+  const F = [["all","All"],["filling","Not paid"],["payfail","Payment issue"],["todo","To generate / send"],["overdue","Overdue"],["paid","Paid"],["done","Sent"],["comp","Complimentary"]];
+  $("filters").innerHTML = F.map(([k,l])=>`<button class="chip" data-filter="${k}" aria-pressed="${filter===k}">${l}</button>`).join("");
+  const q = $("search").value.trim().toLowerCase();
+  const pass = x => {
+    const r=x.r, k=x.s.key;
+    if(filter==="filling" && !(k==="filling"||k==="payfail")) return false;
+    if(filter==="payfail" && k!=="payfail") return false;
+    if(filter==="todo" && !["gen","regen","send","resend"].includes(k)) return false;
+    if(filter==="overdue" && !x.s.overdue) return false;
+    if(filter==="paid" && !(r.payment_status==="paid" && !r.complimentary)) return false;
+    if(filter==="done" && k!=="done") return false;
+    if(filter==="comp" && !r.complimentary) return false;
+    if(q && ![full(r), r.ippis, r.phone, r.email, r.unit, r.designation].join(" ").toLowerCase().includes(q)) return false;
+    return true;
+  };
+  const list = S.filter(pass).sort((a,b)=> a.s.rank-b.s.rank || T(b.r.data_updated_at||b.r.created_at)-T(a.r.data_updated_at||a.r.created_at));
+  $("rows").innerHTML = `<div class="row head"><div>Nurse</div><div>Status</div><div>Progress</div><div>Last activity</div></div>` +
+    (list.length ? list.map(({r,s,p})=>`<div class="row" data-id="${r.id}" tabindex="0">
+      <div><b>${esc(full(r))}</b>${r.is_test?' <span class="badge b-grey">test</span>':''}${r.complimentary?' <span class="badge b-blue">free</span>':''}<div class="small muted">${esc([r.designation, r.unit, r.ippis && "IPPIS "+r.ippis].filter(Boolean).join(" · "))}</div></div>
+      <div><span class="badge ${s.cls}">${esc(s.label)}</span>${r.payment_status==="paid"?`<div class="small muted">${naira(r.amount_paid)} · ${ago(r.paid_at)}</div>`:""}</div>
+      <div class="small">${p.filled}/12 months${p.blanks?` · <span style="color:var(--danger)">${p.blanks} blank</span>`:""}<div class="bar"><i style="width:${Math.round(p.filled/12*100)}%"></i></div></div>
+      <div class="small muted">${ago(r.data_updated_at||r.created_at)}</div></div>`).join("")
+    : `<p class="muted" style="padding:12px 6px">No nurse matches this view.</p>`);
+
+  // activity
+  const names = Object.fromEntries((DATA.rows||[]).map(r=>[r.id, r]));
+  const ICON = {created:"🆕", edited:"✏️", pay_started:"💳", paid:"✅", filled:"📄", unfilled:"↩️", delivered:"📨", undelivered:"↩️", admin:"⭐", note:"📝"};
+  const evs = (DATA.events||[]).filter(e=>!e.submission_id || !names[e.submission_id] || $("show_tests").checked || !names[e.submission_id].is_test);
+  $("feed_count").textContent = evs.length ? `last ${evs.length}` : "";
+  $("feed").innerHTML = evs.length ? evs.map(e=>`<div class="ev"><span class="ic" aria-hidden="true">${ICON[e.kind]||"•"}</span>
+      <div><span class="${e.submission_id&&names[e.submission_id]?"lnk":""}" data-id="${e.submission_id||""}">${esc(e.detail)}</span><time datetime="${esc(e.at)}">${when(e.at)} · ${ago(e.at)}</time></div></div>`).join("")
+    : `<p class="muted">No activity yet.</p>`;
+}
+function personLine({r,s,p}){
+  const hrs = (s.hoursSincePaid!=null && r.payment_status==="paid") ? (s.overdue ? `paid ${Math.floor(s.hoursSincePaid)} h ago` : `${Math.max(0, Math.ceil(SLA_HOURS - s.hoursSincePaid))} h left of ${SLA_HOURS}`) : "";
+  const wa = waLink(r, s.key==="payfail"?"payfail":s.key==="filling"?"filling":"general");
+  const act = [];
+  if(s.key==="send"||s.key==="resend") act.push(`<button class="btn small primary" data-act="delivered" data-id="${r.id}">Mark sent</button>`);
+  if(s.key==="payfail") act.push(`<button class="btn small" data-act="recheck" data-id="${r.id}">Check payment</button>`);
+  if(wa) act.push(`<a class="btn small" href="${wa}" target="_blank" rel="noopener">WhatsApp</a>`);
+  act.push(`<button class="btn small ghost" data-open="${r.id}">Details</button>`);
+  return `<div class="person"><div class="who" data-open="${r.id}"><b>${esc(full(r))}</b><span class="small muted">${esc([r.unit, r.phone, hrs, p.filled+"/12 months", p.blanks?p.blanks+" blank result(s)":""].filter(Boolean).join(" · "))}</span></div><div class="acts">${act.join("")}</div></div>`;
+}
+
+// ---------- detail ----------
+async function openDetail(id, quiet){
+  const r = (DATA.rows||[]).find(x=>x.id===id); if(!r) return;
+  openId = id; const s = stage(r), p = progress(r);
+  const d = $("drawer");
+  const person = (o, label) => o && (o.surname||o.first_name) ? `<dt>${label}</dt><dd>${esc([o.first_name,o.other_name,o.surname].filter(Boolean).join(" "))}<br><span class="small muted">${esc([o.designation, o.ippis && "IPPIS "+o.ippis, o.phone, o.email].filter(Boolean).join(" · "))}</span></dd>` : `<dt>${label}</dt><dd class="muted">Not filled</dd>`;
+  const months = ["J","F","M","A","M","J","J","A","S","O","N","D"].map((m,i)=>{ const x=p.months[i]; return `<span class="${x.n===2?"full":x.n?"half":""}" title="${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][i]}: ${x.n} of 2">${m}</span>`; }).join("");
+  const x = r.extras || {};
+  d.innerHTML = `
+    <div class="panel-head"><div><div class="eyebrow">Nurse</div><h2 id="d_name">${esc(full(r))}</h2></div><button class="btn small ghost" id="d_close">Close</button></div>
+    <span class="badge ${s.cls}">${esc(s.label)}</span> ${r.is_test?'<span class="badge b-grey">test profile</span>':''} ${r.complimentary?'<span class="badge b-blue">complimentary</span>':''}
+
+    <div class="sec"><h3>What to do</h3>
+      <div class="acts" style="margin-top:8px">
+        ${r.filled_at ? `<button class="btn small" data-act="unfilled" data-id="${r.id}">Undo “workbook generated”</button>` : `<button class="btn small" data-act="filled" data-id="${r.id}">Mark workbook generated</button>`}
+        ${r.delivered_at ? `<button class="btn small" data-act="undelivered" data-id="${r.id}">Undo “sent”</button>` : `<button class="btn small primary" data-act="delivered" data-id="${r.id}">Mark sent</button>`}
+        ${r.payment_status!=="paid" ? `<button class="btn small" data-act="recheck" data-id="${r.id}">Check payment again</button>` : ""}
+        <button class="btn small" data-act="${r.complimentary?"uncomp":"comp"}" data-id="${r.id}">${r.complimentary?"Remove complimentary":"Make complimentary (free)"}</button>
+        <button class="btn small ghost" data-act="${r.is_test?"untest":"test"}" data-id="${r.id}">${r.is_test?"Not a test":"Mark as test"}</button>
+      </div>
+      <div class="acts" style="margin-top:8px">
+        ${waNumber(r.phone)?`<a class="btn small" href="${waLink(r, s.key==="payfail"?"payfail":s.key==="done"?"done":s.key==="filling"?"filling":"general")}" target="_blank" rel="noopener">WhatsApp her</a>`:""}
+        ${r.phone?`<a class="btn small ghost" href="tel:${esc(r.phone)}">Call</a>`:""}
+        ${r.email?`<a class="btn small ghost" href="mailto:${esc(r.email)}">Email</a>`:""}
+        <a class="btn small ghost" href="${editLink(r)}" target="_blank" rel="noopener">Open her form</a>
+        <button class="btn small ghost" data-copy="${esc(editLink(r))}">Copy her private link</button>
+      </div>
+      <p class="help">“Open her form” shows exactly what she sees. Any change you make there saves to her answers, so use it to help her, not to browse. Her private link opens her answers for anyone who has it: only send it to her.</p>
+    </div>
+
+    <div class="sec"><h3>Progress</h3>
+      <div class="months" style="margin:8px 0">${months}</div>
+      <dl class="kv">
+        <dt>Months filled</dt><dd>${p.filled} of 12${p.blanks?` · <b style="color:var(--danger)">${p.blanks} result(s) blank</b>`:""}</dd>
+        <dt>Tasks chosen</dt><dd>${p.tasks}</dd>
+        <dt>Signatures</dt><dd>${p.sigs.length?esc(p.sigs.join(", ")):"none added (sign by hand)"}</dd>
+        <dt>Year notes</dt><dd>${["outstanding_performance","areas_of_improvement","training_needs","future_goals","other_feedback"].filter(k=>(x[k]||"").trim()).length} of 5 filled</dd>
+      </dl>
+      <div class="sigs" id="d_sigs" style="margin-top:8px"></div>
+    </div>
+
+    <div class="sec"><h3>People</h3>
+      <dl class="kv" style="margin-top:8px">
+        <dt>Nurse</dt><dd>${esc(r.designation||"")}${r.unit?" · "+esc(r.unit):""}<br><span class="small muted">${esc([r.ippis && "IPPIS "+r.ippis, r.phone, r.email].filter(Boolean).join(" · "))}</span></dd>
+        ${person(r.sup, "Supervisor")}
+        ${person(r.cso, "Counter-signer")}
+      </dl>
+    </div>
+
+    <div class="sec"><h3>Payment and delivery</h3>
+      <dl class="kv" style="margin-top:8px">
+        <dt>Payment</dt><dd>${r.payment_status==="paid"?`<b>Paid ${naira(r.amount_paid)}</b> · ${when(r.paid_at)}`:r.complimentary?"Complimentary (no payment needed)":"Not paid"}</dd>
+        <dt>Reference</dt><dd class="small">${esc(r.tx_ref||"—")}</dd>
+        ${r.last_tx_ref && r.payment_status!=="paid"?`<dt>Last attempt</dt><dd class="small">${esc(r.last_tx_ref)}${r.last_checked_at?` · checked ${ago(r.last_checked_at)}`:""}</dd>`:""}
+        <dt>Started</dt><dd>${when(r.created_at)}</dd>
+        <dt>Last edit</dt><dd>${when(r.data_updated_at)} · ${ago(r.data_updated_at)}</dd>
+        <dt>Workbook made</dt><dd>${when(r.filled_at)}</dd>
+        <dt>Sent</dt><dd>${when(r.delivered_at)}</dd>
+      </dl>
+    </div>
+
+    <div class="sec"><h3>Your note</h3>
+      <textarea id="d_note" placeholder="Anything to remember about her (only you see this)">${esc(r.admin_note||"")}</textarea>
+      <div class="acts" style="margin-top:6px"><button class="btn small" data-act="note" data-id="${r.id}">Save note</button></div>
+      ${r.fill_notes?`<p class="small muted" style="margin:8px 0 0">System note: ${esc(r.fill_notes)}</p>`:""}
+    </div>
+
+    <div class="sec"><h3>Her activity</h3><div class="feed" id="d_feed" style="max-height:none;margin-top:6px"><p class="muted small">Loading…</p></div></div>`;
+  if(!quiet || d.hidden){ d.hidden=false; $("scrim").hidden=false; d.scrollTop=0; }
+  $("d_close").onclick = closeDrawer;
+  try{
+    const det = await call("detail", {id});
+    const sg = det.signatures||{};
+    $("d_sigs").innerHTML = [["sig_me","Nurse"],["sig_sup","Supervisor"],["sig_cso","Counter-signer"]].filter(([k])=>sg[k]).map(([k,l])=>`<figure><img src="${sg[k]}" alt="${l} signature"><figcaption>${l}</figcaption></figure>`).join("");
+    const ICON = {created:"🆕", edited:"✏️", pay_started:"💳", paid:"✅", filled:"📄", unfilled:"↩️", delivered:"📨", undelivered:"↩️", admin:"⭐", note:"📝"};
+    $("d_feed").innerHTML = (det.events||[]).map(e=>`<div class="ev"><span class="ic">${ICON[e.kind]||"•"}</span><div>${esc(e.detail)}<time>${when(e.at)} · ${ago(e.at)}</time></div></div>`).join("") || `<p class="muted small">No activity recorded.</p>`;
+  }catch(e){ $("d_feed").innerHTML = `<p class="err">Couldn't load details.</p>`; }
+}
+function closeDrawer(){ $("drawer").hidden=true; $("scrim").hidden=true; openId=null; }
+$("scrim").onclick = closeDrawer;
+document.addEventListener("keydown", e=>{ if(e.key==="Escape"){ closeDrawer(); closePc(); } });
+
+// ---------- actions ----------
+async function act(kind, id, btn){
+  const map = { delivered:{delivered:true}, undelivered:{delivered:false}, filled:{filled:true}, unfilled:{filled:false},
+                comp:{complimentary:true}, uncomp:{complimentary:false}, test:{is_test:true}, untest:{is_test:false} };
+  if(btn) btn.disabled=true;
+  try{
+    if(kind==="recheck"){ const r = await call("recheck", {id}); toast(r.payment_status==="paid" ? "Payment found. Marked as paid." : "Still no successful payment found."); }
+    else if(kind==="note"){ await call("set", {id, fields:{admin_note: $("d_note").value}}); toast("Note saved"); }
+    else { if(kind==="undelivered" && !confirm("Undo “sent” for this nurse?")) { if(btn) btn.disabled=false; return; }
+      await call("set", {id, fields: map[kind]}); toast({delivered:"Marked as sent", undelivered:"Sent undone", filled:"Marked as generated", unfilled:"Generated undone", comp:"Now complimentary", uncomp:"No longer complimentary", test:"Marked as test", untest:"No longer a test"}[kind]); }
+    await refresh(true);
+  }catch(e){ toast(e.code==="wrong_passcode" ? "Signed out: passcode changed" : "That didn't work. Try again."); if(e.code==="wrong_passcode") signOut(); }
+  if(btn) btn.disabled=false;
+}
+document.addEventListener("click", e=>{
+  const a = e.target.closest("[data-act]"); if(a){ e.stopPropagation(); act(a.dataset.act, a.dataset.id, a); return; }
+  const c = e.target.closest("[data-copy]"); if(c){ navigator.clipboard.writeText(c.dataset.copy).then(()=>toast("Copied"), ()=>prompt("Copy this link:", c.dataset.copy)); return; }
+  const o = e.target.closest("[data-open]"); if(o){ openDetail(o.dataset.open); return; }
+  const row = e.target.closest(".row[data-id]"); if(row){ openDetail(row.dataset.id); return; }
+  const l = e.target.closest(".lnk[data-id]"); if(l && l.dataset.id){ openDetail(l.dataset.id); return; }
+  const f = e.target.closest("[data-filter]"); if(f){ filter=f.dataset.filter; render(); if(f.classList.contains("tile")) document.querySelector("#rows").scrollIntoView({behavior:"smooth", block:"start"}); }
+});
+document.addEventListener("keydown", e=>{ if(e.key==="Enter"){ const row=e.target.closest&&e.target.closest(".row[data-id]"); if(row) openDetail(row.dataset.id); } });
+$("search").addEventListener("input", render);
+$("show_tests").addEventListener("change", render);
+
+// ---------- CSV ----------
+$("csv").onclick = ()=>{
+  const head = ["Name","IPPIS","Designation","Unit","Phone","Email","Status","Paid","Amount","Paid at","Months filled","Blank results","Signatures","Supervisor","Counter-signer","Started","Last edit","Workbook made","Sent","Complimentary","Test","Note"];
+  const lines = [head].concat(visible().map(r=>{ const s=stage(r), p=progress(r);
+    return [full(r), r.ippis, r.designation, r.unit, r.phone, r.email, s.label, r.payment_status==="paid"?"yes":"no", r.amount_paid||"", r.paid_at||"", p.filled, p.blanks, p.sigs.join(" / "),
+      r.sup?[r.sup.first_name,r.sup.surname].filter(Boolean).join(" "):"", r.cso?[r.cso.first_name,r.cso.surname].filter(Boolean).join(" "):"",
+      r.created_at, r.data_updated_at||"", r.filled_at||"", r.delivered_at||"", r.complimentary?"yes":"no", r.is_test?"yes":"no", r.admin_note||""]; }));
+  const csv = lines.map(l=>l.map(v=>`"${String(v??"").replace(/"/g,'""')}"`).join(",")).join("\r\n");
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(["﻿"+csv], {type:"text/csv"}));
+  a.download = `EPMS_nurses_${new Date().toISOString().slice(0,10)}.csv`; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
+};
+
+// ---------- passcode change ----------
+function closePc(){ $("pc").hidden=true; $("pc_scrim").hidden=true; }
+$("settings_btn").onclick = ()=>{ $("pc").hidden=false; $("pc_scrim").hidden=false; $("pc_err").textContent=""; $("pc_new").value=$("pc_new2").value=""; $("pc_new").focus(); };
+$("pc_close").onclick = closePc; $("pc_scrim").onclick = closePc;
+$("pc_save").onclick = async ()=>{
+  const a=$("pc_new").value, b=$("pc_new2").value;
+  if(a.length<10){ $("pc_err").textContent="Use at least 10 characters."; return; }
+  if(a!==b){ $("pc_err").textContent="The two entries don't match."; return; }
+  try{ await call("change_key", {new_key:a}); const remembered = (()=>{ try{ return !!localStorage.getItem("epms_admin"); }catch(e){ return false; } })();
+    KEY=a; store.set(a, remembered); closePc(); toast("Passcode changed"); }
+  catch(e){ $("pc_err").textContent="Couldn't change it. Try again."; }
+};
+
+// ---------- start ----------
+KEY = store.get();
+if(KEY){ load().then(showApp).catch(err=>{ KEY=""; store.clear(); if(err.code==="locked") $("login_err").textContent="Too many wrong tries. Wait 15 minutes."; }); }
+else $("pass").focus();
+})();
+</script>
+</body>
+</html>

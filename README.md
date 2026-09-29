@@ -45,3 +45,13 @@ Then mark them done:
 ```sql
 update public.epms_submissions set filled_at = now(), fill_notes = '<notes>' where id in (...);
 ```
+
+
+## Admin dashboard
+
+`admin.html` (https://buildnet6.github.io/uch-epms-form/admin.html) shows every submission, what needs attention
+(overdue, to generate, ready to send, payment problems, quiet starters), an activity log and per-nurse details and actions.
+It signs in with the admin passcode, which is stored only as a PBKDF2 hash in `epms_admin`; 8 wrong tries from one
+address pause sign-in for 15 minutes. The passcode can be changed from the dashboard.
+
+When workbooks are generated, set `filled_at` on the submission so the dashboard moves it to "Ready to send".

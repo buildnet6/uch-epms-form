@@ -6,6 +6,7 @@
 // - start:   record the reference of a payment attempt just before checkout opens
 // - verify / check: confirm a Flutterwave payment server-side and mark the submission paid
 // - /webhook: optional Flutterwave webhook (not used while the Flutterwave account is shared)
+// - admin:   owner's dashboard (passcode-protected, with sign-in lockout): overview, detail, set, recheck, change_key
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -102,6 +103,94 @@ async function rowByToken(token: string) {
   return data;
 }
 
+// ---------- admin ----------
+const b64 = (u: Uint8Array) => btoa(String.fromCharCode(...u));
+const unb64 = (s: string) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+async function pbkdf2(pass: string, salt: Uint8Array, iter: number) {
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(pass), "PBKDF2", false, ["deriveBits"]);
+  return new Uint8Array(await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt, iterations: iter }, key, 256));
+}
+function sameBytes(a: Uint8Array, b: Uint8Array) {
+  if (a.length !== b.length) return false;
+  let d = 0; for (let i = 0; i < a.length; i++) d |= a[i] ^ b[i];
+  return d === 0;
+}
+async function hashKey(pass: string) {
+  const salt = crypto.getRandomValues(new Uint8Array(16)), iter = 200_000;
+  return `pbkdf2$${iter}$${b64(salt)}$${b64(await pbkdf2(pass, salt, iter))}`;
+}
+const clientIp = (req: Request) =>
+  (req.headers.get("cf-connecting-ip") || req.headers.get("x-forwarded-for") || "?").split(",")[0].trim().slice(0, 64);
+
+// true = signed in; "locked" = too many wrong tries from this address; false = wrong passcode
+async function adminOk(key: unknown, ip: string): Promise<true | false | "locked"> {
+  const since = new Date(Date.now() - 15 * 60_000).toISOString();
+  const { count } = await db.from("epms_admin_failures").select("id", { count: "exact", head: true }).eq("ip", ip).gte("at", since);
+  if ((count ?? 0) >= 8) return "locked";
+  const { data } = await db.from("epms_admin").select("pass_hash").eq("id", 1).maybeSingle();
+  let ok = false;
+  if (data?.pass_hash && typeof key === "string" && key.length >= 6 && key.length <= 200) {
+    const [, it, salt, hash] = String(data.pass_hash).split("$");
+    ok = sameBytes(await pbkdf2(key, unb64(salt), Number(it)), unb64(hash));
+  }
+  if (!ok) { await db.from("epms_admin_failures").insert({ ip }); return false; }
+  return true;
+}
+
+const ADMIN_COLS = "id, edit_token, tx_ref, surname, first_name, ippis, phone, email, unit, payment_status, amount_paid, currency, " +
+  "paid_at, filled_at, delivered_at, admin_note, complimentary, is_test, created_at, data_updated_at, last_tx_ref, last_checked_at, fill_notes, " +
+  "designation:data->employee->>designation, other_name:data->employee->>other_name, monthly:data->monthly, kras:data->kras, extras:data->extras, " +
+  "sup:data->supervisor, cso:data->countersigning_officer, sig_me:data->signature->approved, sig_sup:data->supervisor_signature->approved, " +
+  "sig_cso:data->cso_signature->approved";
+
+async function admin(req: Request, body: any) {
+  const ip = clientIp(req);
+  const auth = await adminOk(body.key, ip);
+  if (auth === "locked") return json({ error: "locked" }, 429);
+  if (!auth) return json({ error: "wrong_passcode" }, 401);
+  const op = body.op;
+  const id = typeof body.id === "string" && UUID.test(body.id) ? body.id : null;
+
+  if (op === "overview") {
+    const { data: rows, error } = await db.from("epms_submissions").select(ADMIN_COLS).order("created_at", { ascending: false }).limit(2000);
+    if (error) return json({ error: "db_error" }, 500);
+    const { data: events } = await db.from("epms_events").select("id, submission_id, kind, detail, at").order("at", { ascending: false }).limit(300);
+    return json({ rows, events, price: PRICE, now: new Date().toISOString() });
+  }
+  if (op === "detail" && id) {
+    const { data } = await db.from("epms_submissions")
+      .select("id, sig_me:data->signature->>png, sig_sup:data->supervisor_signature->>png, sig_cso:data->cso_signature->>png")
+      .eq("id", id).maybeSingle();
+    const { data: events } = await db.from("epms_events").select("kind, detail, at").eq("submission_id", id).order("at", { ascending: false }).limit(100);
+    return json({ signatures: data, events });
+  }
+  if (op === "set" && id) {
+    const f = body.fields ?? {}, up: Record<string, unknown> = {};
+    if (typeof f.delivered === "boolean") up.delivered_at = f.delivered ? new Date().toISOString() : null;
+    if (typeof f.filled === "boolean") up.filled_at = f.filled ? new Date().toISOString() : null;
+    if (typeof f.complimentary === "boolean") up.complimentary = f.complimentary;
+    if (typeof f.is_test === "boolean") up.is_test = f.is_test;
+    if (typeof f.admin_note === "string") up.admin_note = f.admin_note.slice(0, 2000) || null;
+    if (!Object.keys(up).length) return json({ error: "nothing_to_change" }, 400);
+    const { error } = await db.from("epms_submissions").update(up).eq("id", id);
+    return error ? json({ error: "db_error" }, 500) : json({ ok: true });
+  }
+  if (op === "recheck" && id) {
+    const { data: row } = await db.from("epms_submissions").select("*").eq("id", id).maybeSingle();
+    if (!row) return json({ error: "not_found" }, 404);
+    const ok = await reconcile(row);
+    return json({ payment_status: ok ? "paid" : "unpaid" });
+  }
+  if (op === "change_key") {
+    const nk = body.new_key;
+    if (typeof nk !== "string" || nk.length < 10 || nk.length > 200) return json({ error: "weak_passcode" }, 400);
+    const { error } = await db.from("epms_admin").update({ pass_hash: await hashKey(nk), changed_at: new Date().toISOString() }).eq("id", 1);
+    return error ? json({ error: "db_error" }, 500) : json({ ok: true });
+  }
+  if (op === "ping") return json({ ok: true });
+  return json({ error: "unknown_op" }, 400);
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
@@ -123,6 +212,8 @@ Deno.serve(async (req) => {
   let body: any;
   try { body = JSON.parse(raw); } catch { return json({ error: "bad_json" }, 400); }
   const action = body?.action;
+
+  if (action === "admin") return await admin(req, body);
 
   if (action === "config") {
     return json({ price: PRICE, currency: CURRENCY, payments_ready: Boolean(FLW_SECRET_KEY) });

@@ -1,0 +1,5 @@
+-- Applied to the BuildNET EPMS project on 2026-09-29 (migration "epms_admin_dashboard").
+-- Adds: delivered_at, admin_note, complimentary, is_test, data_updated_at on epms_submissions;
+-- epms_events (activity log written by triggers), epms_admin (passcode hash), epms_admin_failures (sign-in lockout).
+-- All three new tables have row level security on and no policies: only the server (service role) can read them.
+-- See the migration history in Supabase for the full statement.
