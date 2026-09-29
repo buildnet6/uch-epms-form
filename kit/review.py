@@ -245,12 +245,13 @@ def fill_quarter(ws, qi, ks, entries_by_key, contract, pms, data, year):
         "I agree with the supervisor. The officer should sustain this performance."], qi) + (
         "" if not weak or qi % 2 else " Support should be given to improve on the areas identified.")
 
-    ws['B52'] = strengths; ws['B54'] = improve
-    own = (((data.get('quarterly') or [{}] * 4)[qi] or {}).get('appraisee_comment') or '').strip() if len(data.get('quarterly') or []) > qi else ''
-    ws['C55'] = own or appraisee
-    ws['E55'] = "Supervisor's Comment\n" + supervisor
+    qd = ((data.get('quarterly') or [])[qi] or {}) if len(data.get('quarterly') or []) > qi else {}
+    ov = lambda k: (qd.get(k) or '').strip()      # admin-written text for this quarter, when supplied
+    ws['B52'] = ov('strengths') or strengths; ws['B54'] = ov('improvement') or improve
+    ws['C55'] = ov('appraisee_comment') or appraisee
+    ws['E55'] = "Supervisor's Comment\n" + (ov('supervisor_comment') or supervisor)
     ws['G55'] = "Counter Supervisor's Comment"
-    ws['H55'] = cso
+    ws['H55'] = ov('cso_comment') or cso
     for a in ('B52', 'B54', 'C55', 'H55'):
         ws[a].alignment = WRAP
     ws['E55'].alignment = Alignment(wrap_text=True, vertical='top', horizontal='left')

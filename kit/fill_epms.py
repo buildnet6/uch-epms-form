@@ -313,7 +313,8 @@ def fill(data, out_path, signature=None, supervisor_signature=None, cso_signatur
         if es:
             appraisee_c, appraiser_c = review.monthly_comments(es, [r['issues'] for r in month_rows[mi]], mi, emp.get('first_name'))
             own = ((monthly[mi] or {}).get('appraisee_comment') or '').strip()
-            ws['B39'] = own or appraisee_c; ws['B40'] = appraiser_c
+            own_sup = ((monthly[mi] or {}).get('appraiser_comment') or '').strip()
+            ws['B39'] = own or appraisee_c; ws['B40'] = own_sup or appraiser_c
             for a in ('B39', 'B40'):
                 ws[a].alignment = Alignment(wrap_text=True, vertical='center', horizontal='left')
         for a, key in [('A24', 'outstanding_performance'), ('A27', 'areas_of_improvement'), ('A30', 'training_needs'),

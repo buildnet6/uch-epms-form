@@ -244,7 +244,7 @@ def summary(data, out_path, compact=0):
                          ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F5F7F2')]),
                          ('LINEBELOW', (0, 1), (-1, -1), 0.3, LINE), ('TOPPADDING', (0, 0), (-1, -1), 1.6),
                          ('BOTTOMPADDING', (0, 0), (-1, -1), 1.6)])
-    if len(order) > 12 and compact >= 1:
+    if len(order) > 8 and compact >= 1:
         # a long task list sits in two side-by-side columns so the page keeps to one sheet
         SC = st('tc2', 6.4, 7.6)
         half = (len(order) + 1) // 2
@@ -362,7 +362,8 @@ def summary(data, out_path, compact=0):
     right = [Paragraph("Your year in your own words", S_H)]
     for label, k in yr:
         v = (extras.get(k) or '').strip()
-        right.append(Paragraph(f"<b>{label}:</b> " + (esc(v) if v else "<font color='#6B7667'>left blank</font>"), S_BUL, bulletText='•'))
+        right.append(Paragraph(f"<b>{label}:</b> " + (esc(v) if v else "<font color='#6B7667'>left blank</font>"),
+                               S_BUL if compact < 2 else st('yb', (8, 8, 7.3, 6.8)[compact], (10, 10, 9, 8.4)[compact], leftIndent=9, bulletIndent=0), bulletText='•'))
     two_holder = (left, right)
 
     # ---- before you submit
