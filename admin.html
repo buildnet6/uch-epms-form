@@ -139,6 +139,9 @@ textarea{min-height:70px;resize:vertical}
 .months span.full{background:var(--green-soft);color:var(--green);font-weight:700}
 .months span.half{background:var(--amber-soft);color:var(--amber-ink);font-weight:700}
 .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:600;z-index:40;max-width:90vw}
+.addgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;margin-top:8px}
+.addgrid label{font-size:13px;color:var(--ink-2);display:grid;gap:3px}
+@media (max-width:520px){ .addgrid{grid-template-columns:1fr} }
 .help{font-size:13.5px;color:var(--ink-2);background:var(--surface-2);border-radius:10px;padding:10px 12px;margin-top:10px}
 </style>
 </head>
@@ -165,6 +168,7 @@ textarea{min-height:70px;resize:vertical}
         <span class="updated"><span class="dot" id="live_dot"></span><span id="updated">Loading…</span></span>
         <button class="btn small" id="refresh">Refresh</button>
         <button class="btn small" id="csv">Download list (CSV)</button>
+        <button class="btn small primary" id="add_btn">+ Add a nurse</button>
         <button class="btn small ghost" id="settings_btn">Passcode</button>
         <button class="btn small ghost" id="signout">Sign out</button>
       </div>
@@ -197,6 +201,38 @@ textarea{min-height:70px;resize:vertical}
 <!-- detail drawer -->
 <div class="scrim" id="scrim" hidden></div>
 <aside class="drawer" id="drawer" hidden role="dialog" aria-modal="true" aria-labelledby="d_name"></aside>
+
+<!-- add-a-nurse dialog -->
+<div class="scrim" id="add_scrim" hidden></div>
+<aside class="drawer" id="add" hidden role="dialog" aria-modal="true" aria-labelledby="add_h">
+  <div class="panel-head"><div><div class="eyebrow">Onboard by hand</div><h2 id="add_h">Add a nurse</h2></div><button class="btn small ghost" id="add_close">Close</button></div>
+  <p class="help">For nurses who send their details or workbook to you instead of using the form. This creates her account and gives you her private link. Send her the link so she can check and finish her details (and pay), or ask Claude to fill her tasks and figures from her workbook.</p>
+  <div id="add_form">
+    <div class="sec"><h3>Nurse</h3><div class="addgrid" data-p="employee">
+      <label>Surname *<input data-f="surname" required></label><label>First name *<input data-f="first_name" required></label>
+      <label>Other name<input data-f="other_name"></label><label>Designation<input data-f="designation" placeholder="e.g. Assistant Director of Nursing"></label>
+      <label>IPPIS No.<input data-f="ippis" inputmode="numeric"></label><label>Phone (WhatsApp)<input data-f="phone" inputmode="tel"></label>
+      <label>Email<input data-f="email" type="email"></label><label>Ward / Unit<input data-f="unit"></label></div></div>
+    <div class="sec"><h3>Supervisor (appraiser)</h3><div class="addgrid" data-p="supervisor">
+      <label>Surname<input data-f="surname"></label><label>First name / initials<input data-f="first_name"></label>
+      <label>Designation<input data-f="designation"></label><label>IPPIS No.<input data-f="ippis"></label>
+      <label>Phone<input data-f="phone"></label><label>Email<input data-f="email"></label></div></div>
+    <div class="sec"><h3>Counter-signing officer</h3><div class="addgrid" data-p="countersigning_officer">
+      <label>Surname<input data-f="surname"></label><label>First name / initials<input data-f="first_name"></label>
+      <label>Designation<input data-f="designation"></label><label>IPPIS No.<input data-f="ippis"></label>
+      <label>Phone<input data-f="phone"></label><label>Email<input data-f="email"></label></div></div>
+    <div class="sec"><h3>Note (only you see this)</h3><textarea id="add_note" placeholder="e.g. Sent her workbook on WhatsApp; payment pending"></textarea></div>
+    <div class="err" id="add_err"></div>
+    <button class="btn primary" id="add_save">Create her account</button>
+  </div>
+  <div id="add_done" hidden>
+    <div class="sec"><h3>✓ Account created</h3>
+      <p class="small">Her private link (send it only to her):</p>
+      <input id="add_link" readonly>
+      <div class="acts" style="margin-top:8px"><button class="btn small" id="add_copy">Copy link</button><a class="btn small" id="add_wa" target="_blank" rel="noopener">WhatsApp her the link</a><button class="btn small ghost" id="add_open">Open her record</button><button class="btn small ghost" id="add_another">Add another nurse</button></div>
+    </div>
+  </div>
+</aside>
 
 <!-- passcode dialog -->
 <div class="scrim" id="pc_scrim" hidden></div>
@@ -371,7 +407,7 @@ function render(){
   const list = S.filter(pass).sort((a,b)=> a.s.rank-b.s.rank || T(b.r.data_updated_at||b.r.created_at)-T(a.r.data_updated_at||a.r.created_at));
   $("rows").innerHTML = `<div class="row head"><div>Nurse</div><div>Status</div><div>Progress</div><div>Last activity</div></div>` +
     (list.length ? list.map(({r,s,p})=>`<div class="row" data-id="${r.id}" tabindex="0">
-      <div><b>${esc(full(r))}</b>${r.is_test?' <span class="badge b-grey">test</span>':''}${r.complimentary?' <span class="badge b-blue">free</span>':''}<div class="small muted">${esc([r.designation, r.unit, r.ippis && "IPPIS "+r.ippis].filter(Boolean).join(" · "))}</div></div>
+      <div><b>${esc(full(r))}</b>${r.is_test?' <span class="badge b-grey">test</span>':''}${r.complimentary?' <span class="badge b-blue">free</span>':''}${r.source==="admin"?' <span class="badge b-grey">added by you</span>':''}<div class="small muted">${esc([r.designation, r.unit, r.ippis && "IPPIS "+r.ippis].filter(Boolean).join(" · "))}</div></div>
       <div><span class="badge ${s.cls}">${esc(s.label)}</span>${r.payment_status==="paid"?`<div class="small muted">${naira(r.amount_paid)} · ${ago(r.paid_at)}</div>`:""}</div>
       <div class="small">${p.filled}/12 months${p.blanks?` · <span style="color:var(--danger)">${p.blanks} blank</span>`:""}<div class="bar"><i style="width:${Math.round(p.filled/12*100)}%"></i></div></div>
       <div class="small muted">${ago(r.data_updated_at||r.created_at)}</div></div>`).join("")
@@ -407,7 +443,7 @@ async function openDetail(id, quiet){
   const x = r.extras || {};
   d.innerHTML = `
     <div class="panel-head"><div><div class="eyebrow">Nurse</div><h2 id="d_name">${esc(full(r))}</h2></div><button class="btn small ghost" id="d_close">Close</button></div>
-    <span class="badge ${s.cls}">${esc(s.label)}</span> ${r.is_test?'<span class="badge b-grey">test profile</span>':''} ${r.complimentary?'<span class="badge b-blue">complimentary</span>':''}
+    <span class="badge ${s.cls}">${esc(s.label)}</span> ${r.is_test?'<span class="badge b-grey">test profile</span>':''} ${r.complimentary?'<span class="badge b-blue">complimentary</span>':''} ${r.source==="admin"?'<span class="badge b-grey">added by you</span>':''}
 
     <div class="sec"><h3>What to do</h3>
       <div class="acts" style="margin-top:8px">
@@ -477,7 +513,7 @@ async function openDetail(id, quiet){
 }
 function closeDrawer(){ $("drawer").hidden=true; $("scrim").hidden=true; openId=null; }
 $("scrim").onclick = closeDrawer;
-document.addEventListener("keydown", e=>{ if(e.key==="Escape"){ closeDrawer(); closePc(); } });
+document.addEventListener("keydown", e=>{ if(e.key==="Escape"){ closeDrawer(); closePc(); if(typeof closeAdd==="function") closeAdd(); } });
 
 // ---------- actions ----------
 async function act(kind, id, btn){
@@ -516,6 +552,30 @@ $("csv").onclick = ()=>{
   const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(["﻿"+csv], {type:"text/csv"}));
   a.download = `EPMS_nurses_${new Date().toISOString().slice(0,10)}.csv`; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
 };
+
+// ---------- add a nurse ----------
+let addedId = null;
+function openAdd(){ $("add").hidden=false; $("add_scrim").hidden=false; $("add_form").hidden=false; $("add_done").hidden=true; $("add_err").textContent="";
+  document.querySelectorAll("#add_form input").forEach(i=>i.value=""); $("add_note").value=""; setTimeout(()=>document.querySelector('#add_form [data-f="surname"]').focus(), 50); }
+function closeAdd(){ $("add").hidden=true; $("add_scrim").hidden=true; }
+$("add_btn").onclick=openAdd; $("add_close").onclick=closeAdd; $("add_scrim").onclick=closeAdd; $("add_another").onclick=openAdd;
+$("add_save").onclick=async ()=>{
+  const body={}; document.querySelectorAll("#add_form .addgrid").forEach(g=>{ const o={}; g.querySelectorAll("input").forEach(i=>o[i.dataset.f]=i.value.trim()); body[g.dataset.p]=o; });
+  if(!body.employee.surname || !body.employee.first_name){ $("add_err").textContent="Enter at least her surname and first name."; return; }
+  $("add_save").disabled=true; $("add_err").textContent="";
+  try{
+    const r = await call("create", {...body, note:$("add_note").value.trim()});
+    addedId = r.id; const link = FORM_URL + "?t=" + r.edit_token;
+    $("add_link").value = link; $("add_form").hidden=true; $("add_done").hidden=false;
+    const wa = waNumber(body.employee.phone);
+    $("add_wa").hidden = !wa;
+    if(wa) $("add_wa").href = `https://wa.me/${wa}?text=${encodeURIComponent(`Hello ${body.employee.first_name}, this is BuildNET Digital Solutions. Your UCH EPMS 2025 form has been set up. Open it here to check and complete your details: ${link} (this link is private to you). Any questions, just reply here.`)}`;
+    await refresh(true);
+  }catch(e){ $("add_err").textContent = e.code==="name_required" ? "Enter at least her surname and first name." : "Couldn't create the account. Try again."; }
+  $("add_save").disabled=false;
+};
+$("add_copy").onclick=()=>navigator.clipboard.writeText($("add_link").value).then(()=>toast("Copied"), ()=>prompt("Copy this link:", $("add_link").value));
+$("add_open").onclick=()=>{ closeAdd(); if(addedId) openDetail(addedId); };
 
 // ---------- passcode change ----------
 function closePc(){ $("pc").hidden=true; $("pc_scrim").hidden=true; }

@@ -376,7 +376,7 @@ const STEPS = ["About you","Supervisor","Counter-signing officer","Your tasks","
 const ISSUE_CHIPS = ["Shortage of personnel","Poor power supply","High patient load","Shortage of consumables","Equipment breakdown","Network downtime","Target met"];
 const KEY = "epms-form-draft-" + YEAR;
 
-const state = { step:0, kras:[], months: MONTHS.map(()=>[{k:"",s:"",i:""},{k:"",s:"",i:""},{k:"",s:"",i:""}]), sigs:{me:"",sup:"",cso:""} };
+const state = { step:0, kras:[], months: MONTHS.map(()=>[{k:"",s:"",i:""},{k:"",s:"",i:""},{k:"",s:"",i:""},{k:"",s:"",i:""},{k:"",s:"",i:""}]), sigs:{me:"",sup:"",cso:""}, keep:{}, more:{} };
 const $ = id => document.getElementById(id);
 const TEXT_IDS = [...document.querySelectorAll('#f input[id]:not([type=search]):not([type=checkbox]):not(#kra_own):not(#edit_link), #f textarea[id]')].map(e=>e.id);
 
@@ -384,11 +384,11 @@ const TEXT_IDS = [...document.querySelectorAll('#f input[id]:not([type=search]):
 let unsynced=false;
 function saveDraft(dirty=true){
   if(dirty){ unsynced=true; if(typeof scheduleAutosave==="function") scheduleAutosave(); }
-  try{ const v={}; TEXT_IDS.forEach(id=>v[id]=$(id).value); localStorage.setItem(KEY, JSON.stringify({v, kras:state.kras, months:state.months, sigs:state.sigs, step:state.step, unsynced, token:(typeof token!=="undefined"?token:"")})); }catch(e){}
+  try{ const v={}; TEXT_IDS.forEach(id=>v[id]=$(id).value); localStorage.setItem(KEY, JSON.stringify({v, kras:state.kras, months:state.months, sigs:state.sigs, keep:state.keep, step:state.step, unsynced, token:(typeof token!=="undefined"?token:"")})); }catch(e){}
 }
 function loadDraft(){ try{ const d=JSON.parse(localStorage.getItem(KEY)||"null"); if(!d) return null; unsynced=!!d.unsynced;
   Object.entries(d.v||{}).forEach(([id,val])=>{ if($(id) && val!=null) $(id).value=val; });
-  if(Array.isArray(d.kras)) state.kras=d.kras; if(Array.isArray(d.months)&&d.months.length===12) state.months=d.months.map(m=>{ const a=(m||[]).slice(0,3); while(a.length<3) a.push({k:"",s:"",i:""}); return a; }); if(d.sigs&&typeof d.sigs==="object") state.sigs=Object.assign({me:"",sup:"",cso:""},d.sigs); else if(typeof d.signature==="string") state.sigs.me=d.signature;
+  if(Array.isArray(d.kras)) state.kras=d.kras; if(Array.isArray(d.months)&&d.months.length===12) state.months=d.months.map(m=>{ const a=(m||[]).slice(0,5); while(a.length<5) a.push({k:"",s:"",i:""}); return a; }); if(d.keep&&typeof d.keep==="object") state.keep=d.keep; registerCustom(state.kras); if(d.sigs&&typeof d.sigs==="object") state.sigs=Object.assign({me:"",sup:"",cso:""},d.sigs); else if(typeof d.signature==="string") state.sigs.me=d.signature;
   if(Number.isInteger(d.step)) state.step=Math.min(d.step,STEPS.length-1);
   return d;
 }catch(e){ return null; } }
@@ -542,6 +542,12 @@ function kraOptions(sel){
   const opts=state.kras.map(k=>{const v=kraId(k);return `<option value="${esc(v)}" ${v===sel?'selected':''}>${esc((k.code==="OWN"?"":codeLabel(k.code)+" · ")+k.text)}</option>`}).join("");
   return `<option value="">Choose a task…</option>`+opts;
 }
+function visibleRows(mi){ const m=state.months[mi]; let last=-1; m.forEach((r,i)=>{ if(r.k||r.s||r.i) last=i; }); return Math.min(5, Math.max(3, last+1, state.more[mi]||0)); }
+function registerCustom(kras){   // tasks brought in with their own target and scale (e.g. from a workbook the nurse sent in)
+  (kras||[]).forEach(k=>{ const c=k.custom; if(!c) return; const id=k.code+"|"+k.text; const u=String(c.unit||"%").toLowerCase();
+    const bands=(c.bands||[]).map(String), lower=(bands[0]||"").trim().startsWith("<");
+    KRA_SCALE[id]={kind:u==="%"?"pct":u.startsWith("min")?"min":"count", target:Number(c.target), lower, bands:bands.length===6?bands:null, ...(u==="%"&&!lower?{max:100}:{})}; });
+}
 function renderMonths(){
   // drop selections that point at tasks no longer chosen
   const valid=new Set(state.kras.map(kraId)); state.months.forEach(m=>m.forEach(r=>{ if(r.k&&!valid.has(r.k)) r.k=""; }));
@@ -549,7 +555,7 @@ function renderMonths(){
   $("months").innerHTML = MONTHS.map((name,mi)=>{
     const [cls,txt]=monthState(state.months[mi]);
     return `<details class="month" data-m="${mi}" ${openMonths.has(mi)?'open':''}><summary><span class="chev" aria-hidden="true">›</span>${name} ${YEAR}<span class="mstate ${cls}" id="ms_${mi}">${txt}</span></summary><div class="mbody">
-      ${[0,1,2].map(ri=>{const r=state.months[mi][ri]; return `<div class="row"><div class="row-title">Task ${ri+1}${ri===2?' <span class="opt">(optional: only if you had a third task this month)</span>':''}</div>
+      ${[0,1,2,3,4].filter(ri=>ri<visibleRows(mi)).map(ri=>{const r=state.months[mi][ri]; return `<div class="row"><div class="row-title">Task ${ri+1}${ri>=2?' <span class="opt">(optional)</span>':''}</div>
         <div class="field"><label for="m${mi}r${ri}k">Task</label><select id="m${mi}r${ri}k" data-m="${mi}" data-r="${ri}" data-f="k">${kraOptions(r.k)}</select></div>
         ${(()=>{const g=outputGuide(r.k); return `<div class="field"><label for="m${mi}r${ri}s">Output Status <span class="opt" id="m${mi}r${ri}l">${esc(g.label||"")}</span> <span class="req">*</span></label>
           <div class="outwrap"><input id="m${mi}r${ri}s" type="text" inputmode="decimal" placeholder="${esc(g.ph)}" value="${esc(r.s)}" data-m="${mi}" data-r="${ri}" data-f="s" ${r.k?'':'disabled'} class="${rowBad(r)?'invalid':''}"><span class="unit" id="m${mi}r${ri}u">${g.unit}</span></div>
@@ -559,6 +565,7 @@ function renderMonths(){
           <div class="field"><label for="m${mi}r${ri}i">Issues or challenges <span class="opt">(optional)</span></label><textarea id="m${mi}r${ri}i" rows="2" data-m="${mi}" data-r="${ri}" data-f="i" placeholder="What made this task difficult this month?">${esc(r.i)}</textarea>
           <div class="qchips">${ISSUE_CHIPS.map(c=>`<button type="button" data-chip="${esc(c)}" data-m="${mi}" data-r="${ri}">+ ${esc(c)}</button>`).join("")}</div></div>
         </div></div>`}).join("")}
+      ${visibleRows(mi)<5?`<button type="button" class="btn small ghost" data-more="${mi}">+ Add another task for ${name}</button>`:""}
     </div></details>`;
   }).join("");
 }
@@ -567,7 +574,7 @@ $("months").addEventListener("input",e=>{ const t=e.target, f=t.dataset.f; if(!f
 $("months").addEventListener("change",e=>{ const t=e.target, f=t.dataset.f; if(f!=="k") return; const m=t.dataset.m, r=t.dataset.r; state.months[m][r].k=t.value;
   const g=outputGuide(t.value), box=$(`m${m}r${r}s`); box.placeholder=g.ph; box.disabled=!t.value; $(`m${m}r${r}u`).textContent=g.unit; $(`m${m}r${r}g`).innerHTML=g.html; $(`m${m}r${r}l`).textContent=g.label||""; showRange(m,r);
   updMonthBadge(Number(m)); saveDraft(); renderNav(); });
-$("months").addEventListener("click",e=>{ const b=e.target.closest("[data-chip]"); if(!b) return; const {m,r}=b.dataset; const row=state.months[m][r]; const c=b.dataset.chip;
+$("months").addEventListener("click",e=>{ const mb=e.target.closest("[data-more]"); if(mb){ const mi=Number(mb.dataset.more); state.more[mi]=visibleRows(mi)+1; openMonths.add(mi); renderMonths(); return; } const b=e.target.closest("[data-chip]"); if(!b) return; const {m,r}=b.dataset; const row=state.months[m][r]; const c=b.dataset.chip;
   if(!row.i.includes(c)) row.i = row.i.trim() ? row.i.trim().replace(/\.?$/,". ")+c+"." : c+"."; const ta=$(`m${m}r${r}i`); ta.value=row.i; updMonthBadge(Number(m)); saveDraft(); });
 $("months").addEventListener("toggle",e=>{ const d=e.target; if(d.matches&&d.matches("details.month")){ const m=Number(d.dataset.m); d.open?openMonths.add(m):openMonths.delete(m);} },true);
 $("fill_same").onclick=()=>{
@@ -582,8 +589,9 @@ function collect(){
   const emp=Object.assign(person("emp"),{department:val("emp_department"),unit:val("emp_unit")});
   const byId=Object.fromEntries(state.kras.map(k=>[kraId(k),k]));
   return {form:"UCH-EPMS-DETAILS",version:1,year:Number(YEAR),employee:emp,supervisor:person("sup"),countersigning_officer:person("cso"),
-    kras:state.kras.map(k=>({code:k.code,kra:k.text})),
-    monthly:MONTHS.map((name,mi)=>({month:name,rows:state.months[mi].map(r=>({code:r.k?byId[r.k].code:"",kra:r.k?byId[r.k].text:"",output:r.s.trim(),issues:r.i.trim()}))})),
+    kras:state.kras.map(k=>Object.assign({code:k.code,kra:k.text}, k.custom?{custom:k.custom}:{})),
+    ...(state.keep.source?{source:state.keep.source}:{}), ...(state.keep.quarterly?{quarterly:state.keep.quarterly}:{}), ...(state.keep.contract?{contract:state.keep.contract}:{}),
+    monthly:MONTHS.map((name,mi)=>({month:name, ...(state.keep.mc&&state.keep.mc[mi]?{appraisee_comment:state.keep.mc[mi]}:{}), rows:state.months[mi].filter((r,i)=>i<2||r.k||r.s||r.i).map(r=>({code:r.k?byId[r.k].code:"",kra:r.k?byId[r.k].text:"",output:r.s.trim(),issues:r.i.trim()}))})),
     extras:{outstanding_performance:val("x_outstanding"),areas_of_improvement:val("x_improve"),training_needs:val("x_training"),future_goals:val("x_goals"),other_feedback:val("x_other")},
     signature: state.sigs.me ? {png:state.sigs.me, approved:true} : null,
     supervisor_signature: state.sigs.sup ? {png:state.sigs.sup, approved:true, consent:true} : null,
@@ -663,8 +671,9 @@ function setFromData(d){
   const setP=(p,o)=>{ if(!o) return; [["surname","surname"],["first","first_name"],["other","other_name"],["designation","designation"],["ippis","ippis"],["email","email"],["phone","phone"]].forEach(([a,b])=>{ if($(p+"_"+a)) $(p+"_"+a).value=o[b]||""; }); };
   setP("emp",d.employee); setP("sup",d.supervisor); setP("cso",d.countersigning_officer);
   if(d.employee){ $("emp_department").value=d.employee.department||"Clinical Nursing"; $("emp_unit").value=d.employee.unit||""; }
-  state.kras=(d.kras||[]).map(k=>({code:k.code,text:k.kra}));
-  state.months=MONTHS.map((_,mi)=>{ const m=(d.monthly||[])[mi]; return [0,1,2].map(ri=>{ const r=m&&m.rows&&m.rows[ri]; return r?{k:r.kra?(r.code+"|"+r.kra):"",s:r.output||"",i:r.issues||""}:{k:"",s:"",i:""}; }); });
+  state.kras=(d.kras||[]).map(k=>Object.assign({code:k.code,text:k.kra}, k.custom?{custom:k.custom}:{})); registerCustom(state.kras);
+  state.keep={source:d.source, quarterly:d.quarterly, contract:d.contract, mc:(d.monthly||[]).map(m=>(m&&m.appraisee_comment)||"")};
+  state.months=MONTHS.map((_,mi)=>{ const m=(d.monthly||[])[mi]; return [0,1,2,3,4].map(ri=>{ const r=m&&m.rows&&m.rows[ri]; return r?{k:r.kra?(r.code+"|"+r.kra):"",s:r.output||"",i:r.issues||""}:{k:"",s:"",i:""}; }); });
   const x=d.extras||{}; $("x_outstanding").value=x.outstanding_performance||""; $("x_improve").value=x.areas_of_improvement||""; $("x_training").value=x.training_needs||""; $("x_goals").value=x.future_goals||""; $("x_other").value=x.other_feedback||"";
   const pick=s=>(s && s.approved && typeof s.png==="string") ? s.png : "";
   state.sigs={me:pick(d.signature), sup:pick(d.supervisor_signature), cso:pick(d.cso_signature)};
@@ -962,12 +971,12 @@ $("copy_link").onclick=async()=>{ try{ await navigator.clipboard.writeText($("ed
 $("reset_btn").onclick=()=>{ $("reset_confirm").hidden=false; $("reset_btn").hidden=true; };
 $("reset_no").onclick=()=>{ $("reset_confirm").hidden=true; $("reset_btn").hidden=false; };
 $("reset_yes").onclick=()=>{ try{localStorage.removeItem(KEY);localStorage.removeItem(TOKEN_KEY);}catch(e){} token=""; paymentStatus="unpaid"; try{history.replaceState(null,"",location.pathname);}catch(e){}
-  TEXT_IDS.forEach(id=>$(id).value = id==="emp_department"?"Clinical Nursing":""); state.kras=[]; state.months=MONTHS.map(()=>[{k:"",s:"",i:""},{k:"",s:"",i:""},{k:"",s:"",i:""}]); state.sigs={me:"",sup:"",cso:""}; renderSig(); $("consent").checked=false; unsynced=false;
+  TEXT_IDS.forEach(id=>$(id).value = id==="emp_department"?"Clinical Nursing":""); state.kras=[]; state.months=MONTHS.map(()=>[{k:"",s:"",i:""},{k:"",s:"",i:""},{k:"",s:"",i:""},{k:"",s:"",i:""},{k:"",s:"",i:""}]); state.sigs={me:"",sup:"",cso:""}; renderSig(); $("consent").checked=false; unsynced=false;
   $("reset_confirm").hidden=true; $("reset_btn").hidden=false; renderKraList(); renderPaidState(); show(0); };
 
 // ---------- start ----------
 function clearDevice(){ try{localStorage.removeItem(KEY);localStorage.removeItem(TOKEN_KEY);}catch(e){} token=""; paymentStatus="unpaid"; txRef=""; unsynced=false;
-  TEXT_IDS.forEach(id=>$(id).value = id==="emp_department"?"Clinical Nursing":""); state.step=0; state.kras=[]; state.months=MONTHS.map(()=>[{k:"",s:"",i:""},{k:"",s:"",i:""},{k:"",s:"",i:""}]); state.sigs={me:"",sup:"",cso:""};
+  TEXT_IDS.forEach(id=>$(id).value = id==="emp_department"?"Clinical Nursing":""); state.step=0; state.kras=[]; state.months=MONTHS.map(()=>[{k:"",s:"",i:""},{k:"",s:"",i:""},{k:"",s:"",i:""},{k:"",s:"",i:""},{k:"",s:"",i:""}]); state.sigs={me:"",sup:"",cso:""};
   if($("consent")) $("consent").checked=false; }
 function boot(){
   renderKraList(); renderSig(); show(state.step); renderPaidState();

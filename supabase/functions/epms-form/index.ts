@@ -6,7 +6,7 @@
 // - start:   record the reference of a payment attempt just before checkout opens
 // - verify / check: confirm a Flutterwave payment server-side and mark the submission paid
 // - /webhook: optional Flutterwave webhook (not used while the Flutterwave account is shared)
-// - admin:   owner's dashboard (passcode-protected, with sign-in lockout): overview, detail, set, recheck, change_key
+// - admin:   owner's dashboard (passcode-protected, with sign-in lockout): overview, detail, set, recheck, create, change_key
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -138,7 +138,7 @@ async function adminOk(key: unknown, ip: string): Promise<true | false | "locked
 }
 
 const ADMIN_COLS = "id, edit_token, tx_ref, surname, first_name, ippis, phone, email, unit, payment_status, amount_paid, currency, " +
-  "paid_at, filled_at, delivered_at, admin_note, complimentary, is_test, created_at, data_updated_at, last_tx_ref, last_checked_at, fill_notes, " +
+  "paid_at, filled_at, delivered_at, admin_note, complimentary, is_test, source, created_at, data_updated_at, last_tx_ref, last_checked_at, fill_notes, " +
   "designation:data->employee->>designation, other_name:data->employee->>other_name, monthly:data->monthly, kras:data->kras, extras:data->extras, " +
   "sup:data->supervisor, cso:data->countersigning_officer, sig_me:data->signature->approved, sig_sup:data->supervisor_signature->approved, " +
   "sig_cso:data->cso_signature->approved";
@@ -186,6 +186,21 @@ async function admin(req: Request, body: any) {
     if (typeof nk !== "string" || nk.length < 10 || nk.length > 200) return json({ error: "weak_passcode" }, 400);
     const { error } = await db.from("epms_admin").update({ pass_hash: await hashKey(nk), changed_at: new Date().toISOString() }).eq("id", 1);
     return error ? json({ error: "db_error" }, 500) : json({ ok: true });
+  }
+  if (op === "create") {
+    // onboard a nurse by hand (e.g. she sent her workbook in): creates her account and returns her private link
+    const P = (o: any) => ({ surname: clip(o?.surname) ?? "", first_name: clip(o?.first_name) ?? "", other_name: clip(o?.other_name) ?? "",
+      designation: clip(o?.designation) ?? "", ippis: clip(o?.ippis, 40) ?? "", email: clip(o?.email) ?? "", phone: clip(o?.phone, 40) ?? "" });
+    const emp = { ...P(body.employee), department: "Clinical Nursing", unit: clip(body.employee?.unit) ?? "" };
+    if (!emp.surname || !emp.first_name) return json({ error: "name_required" }, 400);
+    const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+    const data = { form: "UCH-EPMS-DETAILS", version: 1, year: 2025, source: "admin", employee: emp,
+      supervisor: P(body.supervisor), countersigning_officer: P(body.countersigning_officer), kras: [],
+      monthly: months.map((m) => ({ month: m, rows: [0, 1].map(() => ({ code: "", kra: "", output: "", issues: "" })) })),
+      extras: { outstanding_performance: "", areas_of_improvement: "", training_needs: "", future_goals: "", other_feedback: "" } };
+    const { data: row, error } = await db.from("epms_submissions").insert({ ...summary(data), data, source: "admin",
+      admin_note: clip(body.note, 2000) || "Onboarded by admin." }).select("id, edit_token").single();
+    return error ? json({ error: "db_error" }, 500) : json({ ok: true, id: row.id, edit_token: row.edit_token });
   }
   if (op === "ping") return json({ ok: true });
   return json({ error: "unknown_op" }, 400);

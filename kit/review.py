@@ -26,7 +26,9 @@ def _task_cls():
 
 
 # plain names for tasks in comments ("met target in hand hygiene compliance and clinic workflow")
-PLAIN = [('compliance with hand hygiene', 'hand hygiene compliance'), ('prompt response to patients', "prompt response to patients' needs"),
+PLAIN = [('formulate goals for and direct', 'sectional goals and operations'), ('participates in direct holistic patient care', 'holistic patient care'),
+         ('assess, plans, develops', 'planning and monitoring of patient care'),
+         ('compliance with hand hygiene', 'hand hygiene compliance'), ('prompt response to patients', "prompt response to patients' needs"),
          ('community eye screening', 'community eye screening'), ('clinic workflow', 'clinic workflow'),
          ('strengthen administrative coordination', 'administrative coordination'), ('strengthen clinical documentation', 'clinical documentation'),
          ('develop and publish a triage sop', 'the triage SOP'), ('disinfection of equipment', 'disinfection and sterilization'),
@@ -241,7 +243,8 @@ def fill_quarter(ws, qi, ks, entries_by_key, contract, pms, data, year):
         "" if not weak or qi % 2 else " Support should be given to improve on the areas identified.")
 
     ws['B52'] = strengths; ws['B54'] = improve
-    ws['C55'] = appraisee
+    own = (((data.get('quarterly') or [{}] * 4)[qi] or {}).get('appraisee_comment') or '').strip() if len(data.get('quarterly') or []) > qi else ''
+    ws['C55'] = own or appraisee
     ws['E55'] = "Supervisor's Comment\n" + supervisor
     ws['G55'] = "Counter Supervisor's Comment"
     ws['H55'] = cso

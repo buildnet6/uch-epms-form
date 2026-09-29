@@ -17,7 +17,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from fill_epms import TEMPLATE, CONTRACT, Contract, num_val, norm, out_name  # noqa: E402
+from fill_epms import TEMPLATE, CONTRACT, Contract, num_val, norm, out_name, add_custom_tasks  # noqa: E402
 
 FONT_DIR = '/usr/share/fonts/truetype/dejavu/'
 pdfmetrics.registerFont(TTFont('Sans', FONT_DIR + 'DejaVuSans.ttf'))
@@ -152,6 +152,7 @@ def person(p):
 def summary(data, out_path, compact=0):
     wb = openpyxl.load_workbook(TEMPLATE, data_only=True)
     ws = wb[CONTRACT]
+    add_custom_tasks(ws, data)
     contract = Contract(ws)
     emp, sup, cso = data.get('employee', {}), data.get('supervisor', {}), data.get('countersigning_officer', {})
     extras = data.get('extras', {}) or {}
@@ -165,7 +166,7 @@ def summary(data, out_path, compact=0):
     issues = Counter()
     issue_months = {}
     for mi, m in enumerate(monthly):
-        for r in (m.get('rows') or [])[:3]:
+        for r in (m.get('rows') or [])[:5]:
             text = (r.get('kra') or '').strip()
             if not text:
                 continue
@@ -209,7 +210,7 @@ def summary(data, out_path, compact=0):
     months_filled = len({e[0] for e in filled})
     met = sum(1 for e in filled if e[4])
     blanks = [f"{MONTHS[mi]} task {ri + 1}" for mi, m in enumerate(monthly)
-              for ri, r in enumerate((m.get('rows') or [])[:3]) if (r.get('kra') or '').strip() and num_val(r.get('output')) is None]
+              for ri, r in enumerate((m.get('rows') or [])[:5]) if (r.get('kra') or '').strip() and num_val(r.get('output')) is None]
     ppl = Table([[Paragraph("<font color='#6B7667' size='6.8'>APPRAISEE</font>", S_CELL),
                   Paragraph("<font color='#6B7667' size='6.8'>SUPERVISOR (APPRAISER)</font>", S_CELL),
                   Paragraph("<font color='#6B7667' size='6.8'>COUNTER-SIGNING OFFICER</font>", S_CELL)],
@@ -226,13 +227,18 @@ def summary(data, out_path, compact=0):
                                 ('TOPPADDING', (0, 0), (-1, -1), 4), ('BOTTOMPADDING', (0, 0), (-1, -1), 4)]))
     story += [ppl, Spacer(1, 4), stat_t]
 
+    # grid layout (one column per task) when nurses report more than two tasks a month and have few tasks overall
+    per_month = Counter(e[0] for e in entries)
+    grid = bool(per_month) and max(per_month.values()) > 2 and len(order) <= 6
+    label = {key: f"T{i + 1}" for i, key in enumerate(order)}
+
     # ---- tasks
     story.append(Paragraph("Your tasks (Key Result Areas) and contract targets", S_H))
     rows = [[Paragraph(h, S_HEAD) for h in ("Code", "Task", "Target", "Months used")]]
     for key in order:
         t, code, text, used = tasks[key]
-        rows.append([Paragraph(esc(code), S_CELLB), Paragraph(esc(short_task(text, 95)), S_CELL),
-                     Paragraph(esc(t.target_text()) if t else '—', S_CELL), Paragraph(', '.join(used), S_CELL)])
+        rows.append([Paragraph((f"<b>{label[key]}</b> · " if grid else "") + esc(code), S_CELLB), Paragraph(esc(short_task(text, 95)), S_CELL),
+                     Paragraph(esc(t.target_text()) if t else '—', S_CELL), Paragraph('All 12 months' if len(set(used)) == 12 else ', '.join(dict.fromkeys(used)), S_CELL)])
     tt = Table(rows, colWidths=[W * 0.13, W * 0.55, W * 0.13, W * 0.19], repeatRows=1)
     tt.setStyle(TableStyle([('BACKGROUND', (0, 0), (-1, 0), GREEN), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                             ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F5F7F2')]),
@@ -246,32 +252,58 @@ def summary(data, out_path, compact=0):
     by_month = {mi: [] for mi in range(12)}
     for e in entries:
         by_month[e[0]].append(e)
-    MS = S_CELL if compact < 2 else st('mc', (7.4, 7.4, 6.9, 6.5)[compact], (9, 9, 8.2, 7.6)[compact])
-    for mi in range(12):
-      es_all = by_month[mi]
-      for part in range(0, max(1, len(es_all)), 2):          # a third task goes on its own line under the month
-        cells = [Paragraph(f"<b>{MONTHS[mi]}</b>" if part == 0 else "", MS)]
-        es = es_all[part:part + 2]
-        for j in range(2):
-            if j < len(es):
-                _, key, n, rating, meets = es[j]
+    if grid:
+        RS = st('gr', 7.2, 8.6, alignment=1)
+        ABBR = {'Outstanding': 'O', 'Excellent': 'E', 'Very good': 'VG', 'Good': 'G', 'Fair': 'F', 'Poor': 'P'}
+        mrows = [[Paragraph("", S_HEAD)] + [Paragraph(label[k], st('gh', 7.2, 9, True, colors.white, alignment=1)) for k in order]]
+        for mi in range(12):
+            cells = [Paragraph(f"<b>{MONTHS[mi]}</b>", S_CELL)]
+            got = {e[1]: e for e in by_month[mi]}
+            for key in order:
+                e = got.get(key)
+                if not e:
+                    cells.append(Paragraph("<font color='#6B7667'>—</font>", RS)); continue
+                _, _, n, rating, _ = e
                 t = tasks[key][0]
                 val = (t.show(n) if t else esc(n)) if n is not None else "<font color='#B3261E'><b>blank</b></font>"
-                rt = f"<font color='{BAND_COLORS[rating].hexval().replace('0x', '#')}'><b>{rating}</b></font>" if rating else "<font color='#6B7667'>—</font>"
-                cells += [Paragraph(esc(short_task(tasks[key][2], (52, 36, 30, 28)[compact])), MS), Paragraph(val, MS), Paragraph(rt, MS)]
-            else:
-                cells += [Paragraph("<font color='#6B7667'>—</font>" if part == 0 else "", MS), Paragraph('', MS), Paragraph('', MS)]
-        mrows.append(cells)
-    cw = [W * 0.06] + [W * 0.245, W * 0.1, W * 0.125] * 2
-    mt = Table(mrows, colWidths=cw, repeatRows=1)
-    mt.setStyle(TableStyle([('BACKGROUND', (0, 0), (-1, 0), GREEN), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F5F7F2')]),
-                            ('LINEBELOW', (0, 1), (-1, -1), 0.3, LINE), ('LINEBEFORE', (4, 0), (4, -1), 0.8, LINE),
-                            ('TOPPADDING', (0, 0), (-1, -1), 1.4 if compact < 2 else 0.6), ('BOTTOMPADDING', (0, 0), (-1, -1), 1.4 if compact < 2 else 0.6)]))
-    story += [mt, Spacer(1, 1.5),
-              Paragraph("Rating = where the figure falls on the contract's own scale (Outstanding earns 100% of the task's marks, "
-                        "Excellent 90%, Very good 80%, Good 70%, Fair 60%, Poor 50%). It is a guide only: your supervisor gives the final rating.",
-                        S_SMALL)]
+                rt = f" <font color='{BAND_COLORS[rating].hexval().replace('0x', '#')}'><b>{ABBR[rating]}</b></font>" if rating else ""
+                cells.append(Paragraph(val + rt, RS))
+            mrows.append(cells)
+        cw = [W * 0.08] + [W * 0.92 / len(order)] * len(order)
+        mt = Table(mrows, colWidths=cw, repeatRows=1)
+        mt.setStyle(TableStyle([('BACKGROUND', (0, 0), (-1, 0), GREEN), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F5F7F2')]),
+                                ('LINEBELOW', (0, 1), (-1, -1), 0.3, LINE), ('TOPPADDING', (0, 0), (-1, -1), 1.5), ('BOTTOMPADDING', (0, 0), (-1, -1), 1.5)]))
+        story += [mt, Spacer(1, 1.5),
+                  Paragraph("Each cell shows the Output Status and its rating on the contract's own scale: O Outstanding (100% of the task's marks), "
+                            "E Excellent (90%), VG Very good (80%), G Good (70%), F Fair (60%), P Poor (50%). A guide only: your supervisor gives the final rating.", S_SMALL)]
+    MS = S_CELL if compact < 2 else st('mc', (7.4, 7.4, 6.9, 6.5)[compact], (9, 9, 8.2, 7.6)[compact])
+    if not grid:
+        for mi in range(12):
+          es_all = by_month[mi]
+          for part in range(0, max(1, len(es_all)), 2):          # a third task goes on its own line under the month
+            cells = [Paragraph(f"<b>{MONTHS[mi]}</b>" if part == 0 else "", MS)]
+            es = es_all[part:part + 2]
+            for j in range(2):
+                if j < len(es):
+                    _, key, n, rating, meets = es[j]
+                    t = tasks[key][0]
+                    val = (t.show(n) if t else esc(n)) if n is not None else "<font color='#B3261E'><b>blank</b></font>"
+                    rt = f"<font color='{BAND_COLORS[rating].hexval().replace('0x', '#')}'><b>{rating}</b></font>" if rating else "<font color='#6B7667'>—</font>"
+                    cells += [Paragraph(esc(short_task(tasks[key][2], (52, 36, 30, 28)[compact])), MS), Paragraph(val, MS), Paragraph(rt, MS)]
+                else:
+                    cells += [Paragraph("<font color='#6B7667'>—</font>" if part == 0 else "", MS), Paragraph('', MS), Paragraph('', MS)]
+            mrows.append(cells)
+        cw = [W * 0.06] + [W * 0.245, W * 0.1, W * 0.125] * 2
+        mt = Table(mrows, colWidths=cw, repeatRows=1)
+        mt.setStyle(TableStyle([('BACKGROUND', (0, 0), (-1, 0), GREEN), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F5F7F2')]),
+                                ('LINEBELOW', (0, 1), (-1, -1), 0.3, LINE), ('LINEBEFORE', (4, 0), (4, -1), 0.8, LINE),
+                                ('TOPPADDING', (0, 0), (-1, -1), 1.4 if compact < 2 else 0.6), ('BOTTOMPADDING', (0, 0), (-1, -1), 1.4 if compact < 2 else 0.6)]))
+        story += [mt, Spacer(1, 1.5),
+                  Paragraph("Rating = where the figure falls on the contract's own scale (Outstanding earns 100% of the task's marks, "
+                            "Excellent 90%, Very good 80%, Good 70%, Fair 60%, Poor 50%). It is a guide only: your supervisor gives the final rating.",
+                            S_SMALL)]
 
     # ---- quarters + year, side by side
     q_items = []

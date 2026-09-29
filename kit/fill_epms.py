@@ -149,19 +149,52 @@ def full(p, order='surname_first'):
     return ' '.join(x.strip() for x in parts if x and x.strip())
 
 
+CUSTOM_ROW0 = 1000   # a nurse's own tasks (not on the department list) are staged here, then removed before saving
+
+
+def add_custom_tasks(pms, data):
+    """Write tasks that carry their own target/scale ("custom") into scratch rows of the contract sheet,
+    so every lookup, the quarterly pages and the summary treat them like department tasks. Returns how many."""
+    n = 0
+    for k in data.get('kras') or []:
+        c = k.get('custom') if isinstance(k, dict) else None
+        if not c:
+            continue
+        r = CUSTOM_ROW0 + n; n += 1
+        bands = (c.get('bands') or [None] * 6) + [None] * 6
+        vals = {1: k.get('code') or 'OWN', 2: k.get('kra'), 6: c.get('weight'), 7: c.get('objective'), 11: c.get('weight'),
+                13: c.get('target'), 14: c.get('kpi'), 19: c.get('unit') or '%'}
+        for col, v in vals.items():
+            pms.cell(r, col).value = v
+        for j in range(6):
+            b = bands[j]
+            try:
+                b = float(b) if b is not None and str(b).replace('.', '', 1).isdigit() else b
+            except ValueError:
+                pass
+            pms.cell(r, 21 + j).value = b
+    return n
+
+
 class Contract:
-    """Lookup of KRA rows in the performance contract sheet."""
+    """Lookup of KRA rows in the performance contract sheet (department tasks, then a nurse's own)."""
     def __init__(self, ws):
         self.ws = ws
         self.rows = {}
         code = ''
-        for r in range(19, 100):
+        for r in list(range(19, 100)) + list(range(CUSTOM_ROW0, CUSTOM_ROW0 + 50)):
+            if r == CUSTOM_ROW0:
+                code = ''
+            if r >= CUSTOM_ROW0 and (ws._cells.get((r, 2)) is None or not ws._cells[(r, 2)].value):
+                continue                                   # look without creating cells in the scratch area
             a, b = ws.cell(r, 1).value, ws.cell(r, 2).value
             if a not in (None, ''):
                 code = str(a).strip()
                 if code.replace('.', '').isdigit():
                     code = str(int(float(code)))
             if b:
+                if r >= CUSTOM_ROW0:                           # a nurse's own wording wins over a department row
+                    self.rows[(code, norm(b))] = r; self.rows[('*', norm(b))] = r; continue
                 self.rows[(code, norm(b))] = r
                 self.rows.setdefault(('*', norm(b)), r)
 
@@ -203,6 +236,7 @@ def fill(data, out_path, signature=None, supervisor_signature=None, cso_signatur
     extras = data.get('extras', {}) or {}
     wb = openpyxl.load_workbook(TEMPLATE)
     pms = wb[CONTRACT]
+    n_custom = add_custom_tasks(pms, data)
     contract = Contract(pms)
     notes = []
 
@@ -225,7 +259,7 @@ def fill(data, out_path, signature=None, supervisor_signature=None, cso_signatur
         monthly.append({'rows': []})
     month_rows = []
     for m in monthly:
-        rows = [r for i, r in enumerate((m.get('rows') or [])[:3]) if i < 2 or (r or {}).get('kra')]   # third task only if used
+        rows = [r for i, r in enumerate((m.get('rows') or [])[:5]) if i < 2 or (r or {}).get('kra')]   # tasks 3-5 only if used
         while len(rows) < 2:
             rows.append({})
         month_rows.append([{'code': r.get('code', ''), 'kra': (r.get('kra') or '').strip(),
@@ -258,7 +292,9 @@ def fill(data, out_path, signature=None, supervisor_signature=None, cso_signatur
                 continue
             filled_any = True
             ws.cell(r, 1).value = row['kra'] or None
-            ws.cell(r, 2).value = PE[objectives[mi][ri]] if objectives[mi][ri] else None
+            crow_o = contract.find(row['code'], row['kra']) if row['kra'] else None
+            own_obj = pms.cell(crow_o, 7).value if crow_o and crow_o >= CUSTOM_ROW0 else None
+            ws.cell(r, 2).value = own_obj or (PE[objectives[mi][ri]] if objectives[mi][ri] else None)
             ws.cell(r, 3).value = start; ws.cell(r, 4).value = end
             ws.cell(r, 3).number_format = ws.cell(r, 4).number_format = 'm/d/yyyy'
             out = num_val(row['output'])
@@ -275,7 +311,8 @@ def fill(data, out_path, signature=None, supervisor_signature=None, cso_signatur
         es = [e for e in month_entries[mi] if e.value is not None]
         if es:
             appraisee_c, appraiser_c = review.monthly_comments(es, [r['issues'] for r in month_rows[mi]], mi, emp.get('first_name'))
-            ws['B39'] = appraisee_c; ws['B40'] = appraiser_c
+            own = ((monthly[mi] or {}).get('appraisee_comment') or '').strip()
+            ws['B39'] = own or appraisee_c; ws['B40'] = appraiser_c
             for a in ('B39', 'B40'):
                 ws[a].alignment = Alignment(wrap_text=True, vertical='center', horizontal='left')
         for a, key in [('A24', 'outstanding_performance'), ('A27', 'areas_of_improvement'), ('A30', 'training_needs'),
@@ -296,7 +333,7 @@ def fill(data, out_path, signature=None, supervisor_signature=None, cso_signatur
         'C14': ippis_val(cso.get('ippis')), 'E14': cso.get('email'), 'G14': phone_val(cso.get('phone')),
     }
     periods = [('01/01', '31/03'), ('01/04', '30/06'), ('01/07', '30/09'), ('01/10', '31/12')]
-    reset = {month_sheets[mi]: (12, 13, 14, 24, 27, 30, 34, 37, 39, 40) for mi in range(12)}
+    reset = {month_sheets[mi]: (12, 13, 14, 15, 16, 24, 27, 30, 34, 37, 39, 40) for mi in range(12)}
     for qi, name in enumerate(q_sheets):
         ws = wb[name]
         ws['D5'] = f"{periods[qi][0]}/{year} TO {periods[qi][1]}/{year}"
@@ -377,6 +414,13 @@ def fill(data, out_path, signature=None, supervisor_signature=None, cso_signatur
             for name in q_sheets:
                 place_signature_fit(wb[name], cso_signature, 'H59:J61')
 
+    if n_custom:
+        pms.delete_rows(CUSTOM_ROW0, 60)                   # scratch rows are not part of the workbook
+        for r in [r for r in pms.row_dimensions if r >= CUSTOM_ROW0 - 5]:
+            del pms.row_dimensions[r]
+    own_c = ((data.get('contract') or {}).get('appraisee_comment') or '').strip()
+    if own_c:
+        pms['C120'] = own_c
     stage = out_path + '.stage.xlsx'
     wb.save(stage)
     sys.path.insert(0, HERE)
