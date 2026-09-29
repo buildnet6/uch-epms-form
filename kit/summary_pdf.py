@@ -34,7 +34,7 @@ BAND_COLORS = {'Outstanding': colors.HexColor('#2E7D32'), 'Excellent': colors.He
                'Very good': colors.HexColor('#5B7F2A'), 'Good': colors.HexColor('#8A6D00'),
                'Fair': colors.HexColor('#B25E00'), 'Poor': colors.HexColor('#B3261E')}
 MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-ISSUE_WORDS = ['Shortage of personnel', 'Poor power supply', 'High patient load', 'Shortage of consumables',
+ISSUE_WORDS = ['Shortage of personnel', 'Shortage of manpower', 'Irregular power supply', 'Poor power supply', 'High patient load', 'Shortage of consumables',
                'Equipment breakdown', 'Network downtime']
 
 
@@ -149,7 +149,7 @@ def person(p):
     return f"<b>{esc(name) or '—'}</b><br/><font color='#4A5646'>{esc(' · '.join(bits))}</font>"
 
 
-def summary(data, out_path):
+def summary(data, out_path, compact=0):
     wb = openpyxl.load_workbook(TEMPLATE, data_only=True)
     ws = wb[CONTRACT]
     contract = Contract(ws)
@@ -163,8 +163,9 @@ def summary(data, out_path):
     tasks, order = {}, []          # key -> (Task|None, code, text, months used)
     entries = []                   # (month index, key, value, rating, meets)
     issues = Counter()
+    issue_months = {}
     for mi, m in enumerate(monthly):
-        for r in (m.get('rows') or [])[:2]:
+        for r in (m.get('rows') or [])[:3]:
             text = (r.get('kra') or '').strip()
             if not text:
                 continue
@@ -179,7 +180,9 @@ def summary(data, out_path):
             entries.append((mi, key, n, t.rating(n) if t else None, t.meets(n) if t else None))
             for w in ISSUE_WORDS:
                 if w.lower() in (r.get('issues') or '').lower():
-                    issues[w] += 1
+                    issue_months.setdefault(w, set()).add(mi)
+    for w, ms in issue_months.items():
+        issues[w] = len(ms)                      # count months, not entries
 
     doc = SimpleDocTemplate(out_path, pagesize=A4, leftMargin=13 * mm, rightMargin=13 * mm,
                             topMargin=11 * mm, bottomMargin=10 * mm,
@@ -206,7 +209,7 @@ def summary(data, out_path):
     months_filled = len({e[0] for e in filled})
     met = sum(1 for e in filled if e[4])
     blanks = [f"{MONTHS[mi]} task {ri + 1}" for mi, m in enumerate(monthly)
-              for ri, r in enumerate((m.get('rows') or [])[:2]) if (r.get('kra') or '').strip() and num_val(r.get('output')) is None]
+              for ri, r in enumerate((m.get('rows') or [])[:3]) if (r.get('kra') or '').strip() and num_val(r.get('output')) is None]
     ppl = Table([[Paragraph("<font color='#6B7667' size='6.8'>APPRAISEE</font>", S_CELL),
                   Paragraph("<font color='#6B7667' size='6.8'>SUPERVISOR (APPRAISER)</font>", S_CELL),
                   Paragraph("<font color='#6B7667' size='6.8'>COUNTER-SIGNING OFFICER</font>", S_CELL)],
@@ -243,25 +246,28 @@ def summary(data, out_path):
     by_month = {mi: [] for mi in range(12)}
     for e in entries:
         by_month[e[0]].append(e)
+    MS = S_CELL if compact < 2 else st('mc', (7.4, 7.4, 6.9, 6.5)[compact], (9, 9, 8.2, 7.6)[compact])
     for mi in range(12):
-        cells = [Paragraph(f"<b>{MONTHS[mi]}</b>", S_CELL)]
-        es = by_month[mi]
+      es_all = by_month[mi]
+      for part in range(0, max(1, len(es_all)), 2):          # a third task goes on its own line under the month
+        cells = [Paragraph(f"<b>{MONTHS[mi]}</b>" if part == 0 else "", MS)]
+        es = es_all[part:part + 2]
         for j in range(2):
             if j < len(es):
                 _, key, n, rating, meets = es[j]
                 t = tasks[key][0]
                 val = (t.show(n) if t else esc(n)) if n is not None else "<font color='#B3261E'><b>blank</b></font>"
                 rt = f"<font color='{BAND_COLORS[rating].hexval().replace('0x', '#')}'><b>{rating}</b></font>" if rating else "<font color='#6B7667'>—</font>"
-                cells += [Paragraph(esc(short_task(tasks[key][2], 52)), S_CELL), Paragraph(val, S_CELL), Paragraph(rt, S_CELL)]
+                cells += [Paragraph(esc(short_task(tasks[key][2], (52, 36, 30, 28)[compact])), MS), Paragraph(val, MS), Paragraph(rt, MS)]
             else:
-                cells += [Paragraph("<font color='#6B7667'>—</font>", S_CELL), Paragraph('', S_CELL), Paragraph('', S_CELL)]
+                cells += [Paragraph("<font color='#6B7667'>—</font>" if part == 0 else "", MS), Paragraph('', MS), Paragraph('', MS)]
         mrows.append(cells)
     cw = [W * 0.06] + [W * 0.245, W * 0.1, W * 0.125] * 2
     mt = Table(mrows, colWidths=cw, repeatRows=1)
     mt.setStyle(TableStyle([('BACKGROUND', (0, 0), (-1, 0), GREEN), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                             ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F5F7F2')]),
                             ('LINEBELOW', (0, 1), (-1, -1), 0.3, LINE), ('LINEBEFORE', (4, 0), (4, -1), 0.8, LINE),
-                            ('TOPPADDING', (0, 0), (-1, -1), 1.4), ('BOTTOMPADDING', (0, 0), (-1, -1), 1.4)]))
+                            ('TOPPADDING', (0, 0), (-1, -1), 1.4 if compact < 2 else 0.6), ('BOTTOMPADDING', (0, 0), (-1, -1), 1.4 if compact < 2 else 0.6)]))
     story += [mt, Spacer(1, 1.5),
               Paragraph("Rating = where the figure falls on the contract's own scale (Outstanding earns 100% of the task's marks, "
                         "Excellent 90%, Very good 80%, Good 70%, Fair 60%, Poor 50%). It is a guide only: your supervisor gives the final rating.",
@@ -295,12 +301,10 @@ def summary(data, out_path):
     todo = ["Read through the workbook: every figure above is exactly what it contains."]
     if blanks:
         todo.append("Fill the blank result(s): " + ', '.join(blanks) + ".")
-    todo += ["Sign and date as appraisee on the contract, each monthly review and each quarterly appraisal"
-             + (" (your signature is already placed; add the dates)." if data.get('_signed') else "."),
-             ("Your supervisor adds comments and ratings, and dates the boxes (signature already placed)." if data.get('_sup_signed')
-              else "Your supervisor adds comments, ratings and signs."),
-             ("Your counter-signing officer adds comments and dates the boxes (signature already placed)." if data.get('_cso_signed')
-              else "Your counter-signing officer adds comments and signs.")]
+    todo += ["Comments, quarterly scores and dates are pre-filled from your figures; your appraisers may amend them.",
+             "Your signature is placed." if data.get('_signed') else "Sign as appraisee on the contract, monthly reviews and quarterly appraisals.",
+             "Your supervisor's signature is placed." if data.get('_sup_signed') else "Your supervisor signs the supervisor/appraiser boxes.",
+             "Your counter-signer's signature is placed." if data.get('_cso_signed') else "Your counter-signing officer signs the contract and quarterly appraisals."]
     box = [Paragraph("Before you submit", st('bh', 9.2, 11, True, colors.HexColor('#3A2C00')))] + \
           [Paragraph(esc(t), st('bt', 7.9, 10, color=colors.HexColor('#3A2C00'), leftIndent=9), bulletText='✓') for t in todo]
     bt = Table([[box]], colWidths=[W * 0.5 - 4])
@@ -318,6 +322,13 @@ def summary(data, out_path):
         c.drawRightString(A4[0] - 13 * mm, 6 * mm, f"EPMS {year} summary · {emp.get('surname', '')} {emp.get('first_name', '')}")
         c.restoreState()
     doc.build(story, onFirstPage=footer, onLaterPages=footer)
+    # keep it to one page: shorten task names in the month table until it fits
+    try:
+        from pypdf import PdfReader
+        if len(PdfReader(out_path).pages) > 1 and compact < 3:
+            return summary(data, out_path, compact + 1)
+    except ImportError:
+        pass
     return doc.page if hasattr(doc, 'page') else None
 
 

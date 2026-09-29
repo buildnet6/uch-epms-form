@@ -225,12 +225,16 @@ def fill(data, out_path, signature=None, supervisor_signature=None, cso_signatur
         monthly.append({'rows': []})
     month_rows = []
     for m in monthly:
-        rows = (m.get('rows') or [])[:2]
+        rows = [r for i, r in enumerate((m.get('rows') or [])[:3]) if i < 2 or (r or {}).get('kra')]   # third task only if used
         while len(rows) < 2:
             rows.append({})
         month_rows.append([{'code': r.get('code', ''), 'kra': (r.get('kra') or '').strip(),
                             'output': r.get('output', ''), 'issues': (r.get('issues') or '').strip()} for r in rows])
     objectives = pick_objectives(month_rows)
+    sys.path.insert(0, HERE)
+    import review
+    month_entries = review.monthly_entries(month_rows, contract, pms)
+    review.contract_comments(pms)
     month_sheets = {}
     for name in wb.sheetnames:
         if 'MONTHLY' in name:
@@ -268,6 +272,12 @@ def fill(data, out_path, signature=None, supervisor_signature=None, cso_signatur
                 ws.cell(r, c).alignment = Alignment(wrap_text=True, vertical='center', horizontal='center')
         if not filled_any:
             notes.append(f"{MONTH_ABBR[mi].title()}: no figures submitted")
+        es = [e for e in month_entries[mi] if e.value is not None]
+        if es:
+            appraisee_c, appraiser_c = review.monthly_comments(es, [r['issues'] for r in month_rows[mi]], mi, emp.get('first_name'))
+            ws['B39'] = appraisee_c; ws['B40'] = appraiser_c
+            for a in ('B39', 'B40'):
+                ws[a].alignment = Alignment(wrap_text=True, vertical='center', horizontal='left')
         for a, key in [('A24', 'outstanding_performance'), ('A27', 'areas_of_improvement'), ('A30', 'training_needs'),
                        ('A34', 'future_goals'), ('A37', 'other_feedback')]:
             v = (extras.get(key) or '').strip()
@@ -286,7 +296,7 @@ def fill(data, out_path, signature=None, supervisor_signature=None, cso_signatur
         'C14': ippis_val(cso.get('ippis')), 'E14': cso.get('email'), 'G14': phone_val(cso.get('phone')),
     }
     periods = [('01/01', '31/03'), ('01/04', '30/06'), ('01/07', '30/09'), ('01/10', '31/12')]
-    reset = {month_sheets[mi]: (12, 13, 24, 27, 30, 34, 37) for mi in range(12)}
+    reset = {month_sheets[mi]: (12, 13, 14, 24, 27, 30, 34, 37, 39, 40) for mi in range(12)}
     for qi, name in enumerate(q_sheets):
         ws = wb[name]
         ws['D5'] = f"{periods[qi][0]}/{year} TO {periods[qi][1]}/{year}"
@@ -333,7 +343,12 @@ def fill(data, out_path, signature=None, supervisor_signature=None, cso_signatur
                 ws.cell(r, c).alignment = Alignment(wrap_text=True, vertical='center',
                                                     horizontal='center' if c in (1, 3, 5, 6, 8, 9) or c >= 10 else 'left')
         ws['C25'] = '=SUM(C19:C24)'
-        reset[name] = (5, 7, 8, 10, 11, 13, 14) + tuple(range(19, 25))
+        by_key = {}
+        for mi in range(qi * 3, qi * 3 + 3):
+            for e in month_entries[mi]:
+                by_key.setdefault((e.row['code'], norm(e.row['kra'])), []).append(e)
+        review.fill_quarter(ws, qi, ks, by_key, contract, pms, data, year)
+        reset[name] = (5, 7, 8, 10, 11, 13, 14) + tuple(range(19, 25)) + tuple(range(30, 45)) + (52, 54, 55, 56, 57, 58)
 
     # signatures (only those supplied and approved): appraisee, supervisor/appraiser, counter-signing officer
     if signature or supervisor_signature or cso_signature:

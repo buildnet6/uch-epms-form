@@ -298,7 +298,7 @@ footer.note{color:var(--muted);font-size:13px;margin-top:18px;text-align:center}
   <section class="step" data-step="4" aria-labelledby="s5h" hidden>
     <div class="step-head">
       <h2 id="s5h">Monthly results</h2>
-      <p class="hint">For each month, choose two of your tasks and enter each one's <b>Output Status</b>: your score for that task in that month. Some tasks are percentages (0 to 100); others are numbers, such as how many screenings or trainings you held. Under each box you'll see your contract target and the rating scale. Falling short of the target is not wrong: enter your true figure and your supervisor rates it on that scale. Leave a month blank if you do not have its figures yet.</p>
+      <p class="hint">For each month, choose two of your tasks (a third is optional) and enter each one's <b>Output Status</b>: your score for that task in that month. Some tasks are percentages (0 to 100); others are numbers, such as how many screenings or trainings you held. Under each box you'll see your contract target and the rating scale. Falling short of the target is not wrong: enter your true figure and your supervisor rates it on that scale. Leave a month blank if you do not have its figures yet.</p>
     </div>
     <div class="copy-row"><button type="button" class="btn small" id="fill_same">Use the same two tasks for every empty month</button></div>
     <div class="months" id="months"></div>
@@ -376,7 +376,7 @@ const STEPS = ["About you","Supervisor","Counter-signing officer","Your tasks","
 const ISSUE_CHIPS = ["Shortage of personnel","Poor power supply","High patient load","Shortage of consumables","Equipment breakdown","Network downtime","Target met"];
 const KEY = "epms-form-draft-" + YEAR;
 
-const state = { step:0, kras:[], months: MONTHS.map(()=>[{k:"",s:"",i:""},{k:"",s:"",i:""}]), sigs:{me:"",sup:"",cso:""} };
+const state = { step:0, kras:[], months: MONTHS.map(()=>[{k:"",s:"",i:""},{k:"",s:"",i:""},{k:"",s:"",i:""}]), sigs:{me:"",sup:"",cso:""} };
 const $ = id => document.getElementById(id);
 const TEXT_IDS = [...document.querySelectorAll('#f input[id]:not([type=search]):not([type=checkbox]):not(#kra_own):not(#edit_link), #f textarea[id]')].map(e=>e.id);
 
@@ -388,7 +388,7 @@ function saveDraft(dirty=true){
 }
 function loadDraft(){ try{ const d=JSON.parse(localStorage.getItem(KEY)||"null"); if(!d) return null; unsynced=!!d.unsynced;
   Object.entries(d.v||{}).forEach(([id,val])=>{ if($(id) && val!=null) $(id).value=val; });
-  if(Array.isArray(d.kras)) state.kras=d.kras; if(Array.isArray(d.months)&&d.months.length===12) state.months=d.months; if(d.sigs&&typeof d.sigs==="object") state.sigs=Object.assign({me:"",sup:"",cso:""},d.sigs); else if(typeof d.signature==="string") state.sigs.me=d.signature;
+  if(Array.isArray(d.kras)) state.kras=d.kras; if(Array.isArray(d.months)&&d.months.length===12) state.months=d.months.map(m=>{ const a=(m||[]).slice(0,3); while(a.length<3) a.push({k:"",s:"",i:""}); return a; }); if(d.sigs&&typeof d.sigs==="object") state.sigs=Object.assign({me:"",sup:"",cso:""},d.sigs); else if(typeof d.signature==="string") state.sigs.me=d.signature;
   if(Number.isInteger(d.step)) state.step=Math.min(d.step,STEPS.length-1);
   return d;
 }catch(e){ return null; } }
@@ -532,7 +532,7 @@ const rowBad = r => r.k && r.s!=="" && !!rangeCheck(r.k,r.s).err;
 function monthState(m){
   if(m.some(rowBad)) return ["part","Check Output Status"];
   const full=m.filter(r=>r.k&&r.s!=="").length;
-  if(full===2) return ["ok","Done"];
+  if(full>=2) return ["ok","Done"];
   if(m.some(r=>r.k&&r.s==="")) return ["part","Add Output Status"];
   if(m.some(r=>!r.k&&(r.s!==""||r.i))) return ["part","Choose a task"];
   if(full===1) return ["part","1 of 2 tasks done"];
@@ -549,7 +549,7 @@ function renderMonths(){
   $("months").innerHTML = MONTHS.map((name,mi)=>{
     const [cls,txt]=monthState(state.months[mi]);
     return `<details class="month" data-m="${mi}" ${openMonths.has(mi)?'open':''}><summary><span class="chev" aria-hidden="true">›</span>${name} ${YEAR}<span class="mstate ${cls}" id="ms_${mi}">${txt}</span></summary><div class="mbody">
-      ${[0,1].map(ri=>{const r=state.months[mi][ri]; return `<div class="row"><div class="row-title">Task ${ri+1}</div>
+      ${[0,1,2].map(ri=>{const r=state.months[mi][ri]; return `<div class="row"><div class="row-title">Task ${ri+1}${ri===2?' <span class="opt">(optional: only if you had a third task this month)</span>':''}</div>
         <div class="field"><label for="m${mi}r${ri}k">Task</label><select id="m${mi}r${ri}k" data-m="${mi}" data-r="${ri}" data-f="k">${kraOptions(r.k)}</select></div>
         ${(()=>{const g=outputGuide(r.k); return `<div class="field"><label for="m${mi}r${ri}s">Output Status <span class="opt" id="m${mi}r${ri}l">${esc(g.label||"")}</span> <span class="req">*</span></label>
           <div class="outwrap"><input id="m${mi}r${ri}s" type="text" inputmode="decimal" placeholder="${esc(g.ph)}" value="${esc(r.s)}" data-m="${mi}" data-r="${ri}" data-f="s" ${r.k?'':'disabled'} class="${rowBad(r)?'invalid':''}"><span class="unit" id="m${mi}r${ri}u">${g.unit}</span></div>
@@ -664,7 +664,7 @@ function setFromData(d){
   setP("emp",d.employee); setP("sup",d.supervisor); setP("cso",d.countersigning_officer);
   if(d.employee){ $("emp_department").value=d.employee.department||"Clinical Nursing"; $("emp_unit").value=d.employee.unit||""; }
   state.kras=(d.kras||[]).map(k=>({code:k.code,text:k.kra}));
-  state.months=MONTHS.map((_,mi)=>{ const m=(d.monthly||[])[mi]; return [0,1].map(ri=>{ const r=m&&m.rows&&m.rows[ri]; return r?{k:r.kra?(r.code+"|"+r.kra):"",s:r.output||"",i:r.issues||""}:{k:"",s:"",i:""}; }); });
+  state.months=MONTHS.map((_,mi)=>{ const m=(d.monthly||[])[mi]; return [0,1,2].map(ri=>{ const r=m&&m.rows&&m.rows[ri]; return r?{k:r.kra?(r.code+"|"+r.kra):"",s:r.output||"",i:r.issues||""}:{k:"",s:"",i:""}; }); });
   const x=d.extras||{}; $("x_outstanding").value=x.outstanding_performance||""; $("x_improve").value=x.areas_of_improvement||""; $("x_training").value=x.training_needs||""; $("x_goals").value=x.future_goals||""; $("x_other").value=x.other_feedback||"";
   const pick=s=>(s && s.approved && typeof s.png==="string") ? s.png : "";
   state.sigs={me:pick(d.signature), sup:pick(d.supervisor_signature), cso:pick(d.cso_signature)};
@@ -962,12 +962,12 @@ $("copy_link").onclick=async()=>{ try{ await navigator.clipboard.writeText($("ed
 $("reset_btn").onclick=()=>{ $("reset_confirm").hidden=false; $("reset_btn").hidden=true; };
 $("reset_no").onclick=()=>{ $("reset_confirm").hidden=true; $("reset_btn").hidden=false; };
 $("reset_yes").onclick=()=>{ try{localStorage.removeItem(KEY);localStorage.removeItem(TOKEN_KEY);}catch(e){} token=""; paymentStatus="unpaid"; try{history.replaceState(null,"",location.pathname);}catch(e){}
-  TEXT_IDS.forEach(id=>$(id).value = id==="emp_department"?"Clinical Nursing":""); state.kras=[]; state.months=MONTHS.map(()=>[{k:"",s:"",i:""},{k:"",s:"",i:""}]); state.sigs={me:"",sup:"",cso:""}; renderSig(); $("consent").checked=false; unsynced=false;
+  TEXT_IDS.forEach(id=>$(id).value = id==="emp_department"?"Clinical Nursing":""); state.kras=[]; state.months=MONTHS.map(()=>[{k:"",s:"",i:""},{k:"",s:"",i:""},{k:"",s:"",i:""}]); state.sigs={me:"",sup:"",cso:""}; renderSig(); $("consent").checked=false; unsynced=false;
   $("reset_confirm").hidden=true; $("reset_btn").hidden=false; renderKraList(); renderPaidState(); show(0); };
 
 // ---------- start ----------
 function clearDevice(){ try{localStorage.removeItem(KEY);localStorage.removeItem(TOKEN_KEY);}catch(e){} token=""; paymentStatus="unpaid"; txRef=""; unsynced=false;
-  TEXT_IDS.forEach(id=>$(id).value = id==="emp_department"?"Clinical Nursing":""); state.step=0; state.kras=[]; state.months=MONTHS.map(()=>[{k:"",s:"",i:""},{k:"",s:"",i:""}]); state.sigs={me:"",sup:"",cso:""};
+  TEXT_IDS.forEach(id=>$(id).value = id==="emp_department"?"Clinical Nursing":""); state.step=0; state.kras=[]; state.months=MONTHS.map(()=>[{k:"",s:"",i:""},{k:"",s:"",i:""},{k:"",s:"",i:""}]); state.sigs={me:"",sup:"",cso:""};
   if($("consent")) $("consent").checked=false; }
 function boot(){
   renderKraList(); renderSig(); show(state.step); renderPaidState();
