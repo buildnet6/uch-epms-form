@@ -11,3 +11,6 @@ alter table epms_submissions
   add column if not exists payment_note text,                      -- admin's note for a manual confirmation
   add column if not exists archived boolean not null default false;-- duplicates / not needed, hidden from lists
 -- epms_log_activity_after(): 'paid' event says how it was confirmed; logs undo of a manual payment and archive/restore.
+
+-- 2026-09-29 epms_keep_signatures: a save without a signature never wipes one on file; only data.sig_removed (me/sup/cso) clears it.
+-- (see function epms_keep_signatures() + BEFORE UPDATE OF data trigger)

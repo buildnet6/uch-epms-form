@@ -878,13 +878,14 @@ $("sig_cards").addEventListener("click", e=>{
   else if(act==="approve"){ if(!w0.png) return;
     if(SIGNERS[r].consent && !$(r+"_consent").checked){ $(r+"_warn").textContent="Please tick the box to confirm "+SIGNERS[r].who()+" gave you this signature for your EPMS forms."; return; }
     if(w0.png.length>150000){ $(r+"_warn").textContent="That signature image is too large. Please try again with a closer photo."; return; }
-    state.sigs[r]=w0.png; renderSig(); saveDraft(); $(r+"_card").scrollIntoView({block:"nearest"}); }
+    state.sigs[r]=w0.png; sigRemoved(r,false); renderSig(); saveDraft(); $(r+"_card").scrollIntoView({block:"nearest"}); }
   else if(act==="cancel"){ w0.src=null; w0.png=""; $(r+"_preview").hidden=true; setSigImgs(r,""); if(w0.pctx) sizePad(r); if($(r+"_consent")) $(r+"_consent").checked=false; }
   else if(act==="change"){ $(r+"_done").hidden=true; $(r+"_edit").hidden=false; $(r+"_preview").hidden=true; w0.src=null; if($(r+"_consent")) $(r+"_consent").checked=false; }
-  else if(act==="remove"){ state.sigs[r]=""; w0.src=null; $(r+"_preview").hidden=true; if($(r+"_consent")) $(r+"_consent").checked=false; renderSig(); saveDraft(); }
+  else if(act==="remove"){ state.sigs[r]=""; sigRemoved(r,true); w0.src=null; $(r+"_preview").hidden=true; if($(r+"_consent")) $(r+"_consent").checked=false; renderSig(); saveDraft(); }
 });
 renderSig();
 
+function sigRemoved(r,on){ const rest=(state.keep.rest=state.keep.rest||{}); const l=new Set(rest.sig_removed||[]); on?l.add(r):l.delete(r); rest.sig_removed=[...l]; }
 function firstIncompleteStep(){ for(const i of [0,1,2,3,4]){ if(!stepDone(i)) return i; } return -1; }
 
 let fwLoading=null;
