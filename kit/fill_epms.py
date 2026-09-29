@@ -293,7 +293,8 @@ def fill(data, out_path, signature=None, supervisor_signature=None, cso_signatur
             filled_any = True
             ws.cell(r, 1).value = row['kra'] or None
             crow_o = contract.find(row['code'], row['kra']) if row['kra'] else None
-            own_obj = pms.cell(crow_o, 7).value if crow_o and crow_o >= CUSTOM_ROW0 else None
+            own_obj = (' '.join(str(pms.cell(crow_o, 7).value or '').split()) or None) \
+                if crow_o and (crow_o >= CUSTOM_ROW0 or data.get('objectives_from_contract')) else None
             ws.cell(r, 2).value = own_obj or (PE[objectives[mi][ri]] if objectives[mi][ri] else None)
             ws.cell(r, 3).value = start; ws.cell(r, 4).value = end
             ws.cell(r, 3).number_format = ws.cell(r, 4).number_format = 'm/d/yyyy'

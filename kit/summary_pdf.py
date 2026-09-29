@@ -230,6 +230,7 @@ def summary(data, out_path, compact=0):
     # grid layout (one column per task) when nurses report more than two tasks a month and have few tasks overall
     per_month = Counter(e[0] for e in entries)
     grid = bool(per_month) and max(per_month.values()) > 2 and len(order) <= 6
+    listing = bool(per_month) and max(per_month.values()) > 2 and not grid     # many tasks: one line per month
     label = {key: f"T{i + 1}" for i, key in enumerate(order)}
 
     # ---- tasks
@@ -237,9 +238,9 @@ def summary(data, out_path, compact=0):
     rows = [[Paragraph(h, S_HEAD) for h in ("Code", "Task", "Target", "Months used")]]
     for key in order:
         t, code, text, used = tasks[key]
-        rows.append([Paragraph((f"<b>{label[key]}</b> · " if grid else "") + esc(code), S_CELLB), Paragraph(esc(short_task(text, 95)), S_CELL),
-                     Paragraph(esc(t.target_text()) if t else '—', S_CELL), Paragraph('All 12 months' if len(set(used)) == 12 else ', '.join(dict.fromkeys(used)), S_CELL)])
-    tt = Table(rows, colWidths=[W * 0.13, W * 0.55, W * 0.13, W * 0.19], repeatRows=1)
+        rows.append([Paragraph((f"<b>{label[key]}</b> · " if (grid or listing) else "") + esc(code), S_CELLB), Paragraph(esc(short_task(text, 72 if listing else 95)), S_CELL),
+                     Paragraph(esc(t.target_text()) if t else '—', S_CELL), Paragraph('All 12 months' if len(set(used)) == 12 else (f"{len(set(used))} months" if listing else ', '.join(dict.fromkeys(used))), S_CELL)])
+    tt = Table(rows, colWidths=([W * 0.16, W * 0.62, W * 0.11, W * 0.11] if listing else [W * 0.13, W * 0.55, W * 0.13, W * 0.19]), repeatRows=1)
     tt.setStyle(TableStyle([('BACKGROUND', (0, 0), (-1, 0), GREEN), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                             ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F5F7F2')]),
                             ('LINEBELOW', (0, 1), (-1, -1), 0.3, LINE), ('TOPPADDING', (0, 0), (-1, -1), 1.6),
@@ -277,8 +278,27 @@ def summary(data, out_path, compact=0):
         story += [mt, Spacer(1, 1.5),
                   Paragraph("Each cell shows the Output Status and its rating on the contract's own scale: O Outstanding (100% of the task's marks), "
                             "E Excellent (90%), VG Very good (80%), G Good (70%), F Fair (60%), P Poor (50%). A guide only: your supervisor gives the final rating.", S_SMALL)]
+    if listing:
+        ABBR2 = {'Outstanding': 'O', 'Excellent': 'E', 'Very good': 'VG', 'Good': 'G', 'Fair': 'F', 'Poor': 'P'}
+        LS = st('ls', 7.3, 9.4)
+        mrows = [[Paragraph("", S_HEAD), Paragraph("Tasks reported that month: Output Status and rating", S_HEAD)]]
+        for mi in range(12):
+            bits = []
+            for _, key, n, rating, _ in by_month[mi]:
+                t = tasks[key][0]
+                val = (t.show(n) if t else esc(n)) if n is not None else "<font color='#B3261E'><b>blank</b></font>"
+                rt = f" <font color='{BAND_COLORS[rating].hexval().replace('0x', '#')}'><b>{ABBR2[rating]}</b></font>" if rating else ""
+                bits.append(f"<b>{label[key]}</b> {val}{rt}")
+            mrows.append([Paragraph(f"<b>{MONTHS[mi]}</b>", S_CELL), Paragraph("&nbsp;&nbsp;·&nbsp;&nbsp;".join(bits) or "<font color='#6B7667'>no figures</font>", LS)])
+        mt = Table(mrows, colWidths=[W * 0.08, W * 0.92], repeatRows=1)
+        mt.setStyle(TableStyle([('BACKGROUND', (0, 0), (-1, 0), GREEN), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F5F7F2')]),
+                                ('LINEBELOW', (0, 1), (-1, -1), 0.3, LINE), ('TOPPADDING', (0, 0), (-1, -1), 1.5), ('BOTTOMPADDING', (0, 0), (-1, -1), 1.5)]))
+        story += [mt, Spacer(1, 1.5),
+                  Paragraph("T1, T2… are the tasks listed above. Ratings on the contract's own scale: O Outstanding (100% of the task's marks), "
+                            "E Excellent (90%), VG Very good (80%), G Good (70%), F Fair (60%), P Poor (50%). A guide only: your supervisor gives the final rating.", S_SMALL)]
     MS = S_CELL if compact < 2 else st('mc', (7.4, 7.4, 6.9, 6.5)[compact], (9, 9, 8.2, 7.6)[compact])
-    if not grid:
+    if not grid and not listing:
         for mi in range(12):
           es_all = by_month[mi]
           for part in range(0, max(1, len(es_all)), 2):          # a third task goes on its own line under the month

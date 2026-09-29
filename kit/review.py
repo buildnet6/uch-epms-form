@@ -26,7 +26,10 @@ def _task_cls():
 
 
 # plain names for tasks in comments ("met target in hand hygiene compliance and clinic workflow")
-PLAIN = [('formulate goals for and direct', 'sectional goals and operations'), ('participates in direct holistic patient care', 'holistic patient care'),
+PLAIN = [('formulate goals for and direct', 'sectional goals and operations'),
+         ('to provide adequate signages', 'laboratory signage'), ('strengthen reporting system', 'the unit reporting system'),
+         ('1) monthly audit of critically ill', 'the audit of critically ill patients'), ('2) ed admission', 'ED admission and transfer registers'),
+         ('3) bed management', 'bed management reports'), ('to inform media houses', 'mental health awareness outreach'), ('participates in direct holistic patient care', 'holistic patient care'),
          ('assess, plans, develops', 'planning and monitoring of patient care'),
          ('compliance with hand hygiene', 'hand hygiene compliance'), ('prompt response to patients', "prompt response to patients' needs"),
          ('community eye screening', 'community eye screening'), ('clinic workflow', 'clinic workflow'),
