@@ -297,7 +297,10 @@ def summary(data, out_path):
         todo.append("Fill the blank result(s): " + ', '.join(blanks) + ".")
     todo += ["Sign and date as appraisee on the contract, each monthly review and each quarterly appraisal"
              + (" (your signature is already placed; add the dates)." if data.get('_signed') else "."),
-             "Your supervisor and counter-signing officer add their comments, ratings and signatures."]
+             ("Your supervisor adds comments and ratings, and dates the boxes (signature already placed)." if data.get('_sup_signed')
+              else "Your supervisor adds comments, ratings and signs."),
+             ("Your counter-signing officer adds comments and dates the boxes (signature already placed)." if data.get('_cso_signed')
+              else "Your counter-signing officer adds comments and signs.")]
     box = [Paragraph("Before you submit", st('bh', 9.2, 11, True, colors.HexColor('#3A2C00')))] + \
           [Paragraph(esc(t), st('bt', 7.9, 10, color=colors.HexColor('#3A2C00'), leftIndent=9), bulletText='✓') for t in todo]
     bt = Table([[box]], colWidths=[W * 0.5 - 4])
@@ -327,12 +330,16 @@ if __name__ == '__main__':
     ap.add_argument('files', nargs='+')
     ap.add_argument('--out', default='out')
     ap.add_argument('--signed', action='store_true', help="the workbook carries a signature supplied outside the form")
+    ap.add_argument('--sup-signed', action='store_true', help="the supervisor's signature was supplied outside the form")
+    ap.add_argument('--cso-signed', action='store_true', help="the counter-signing officer's signature was supplied outside the form")
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
     for f in a.files:
         d = json.load(open(f))
         d = d.get('data', d)
         d['_signed'] = a.signed or bool((d.get('signature') or {}).get('approved'))
+        d['_sup_signed'] = a.sup_signed or bool((d.get('supervisor_signature') or {}).get('approved'))
+        d['_cso_signed'] = a.cso_signed or bool((d.get('cso_signature') or {}).get('approved'))
         p = os.path.join(a.out, summary_name(d))
         summary(d, p)
         print('wrote', p)

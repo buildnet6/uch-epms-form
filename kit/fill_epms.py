@@ -14,8 +14,22 @@ from openpyxl.utils.units import pixels_to_EMU
 from openpyxl.utils import column_index_from_string, get_column_letter
 
 
+def place_signature_fit(ws, sig_path, rng, max_h=54, pad=5):
+    """Place a signature inside the merged box `rng` (e.g. 'I124:M126'), as large as fits up to max_h pixels."""
+    from openpyxl.utils.cell import range_boundaries
+    c1, r1, c2, r2 = range_boundaries(rng)
+    dw = ws.sheet_format.defaultColWidth or 8.43; dh = ws.sheet_format.defaultRowHeight or 15
+    box_w = sum(int(((ws.column_dimensions[get_column_letter(c)].width or dw) * 7) + 5) for c in range(c1, c2 + 1))
+    box_h = sum(int((ws.row_dimensions[r].height or dh) * 96 / 72) for r in range(r1, r2 + 1))
+    img = XLImage(sig_path); ratio = img.width / img.height
+    h = min(max_h, box_h - 2 * pad)
+    if h * ratio > box_w - 2 * pad:
+        h = int((box_w - 2 * pad) / ratio)
+    place_signature(ws, sig_path, f"{get_column_letter(c1)}{r1}", max(12, int(h)), x_off_px=pad + 3, y_off_px=max(2, (box_h - h) // 2))
+
+
 def place_signature(ws, sig_path, cell, height_px, x_off_px=8, y_off_px=4):
-    """Put the appraisee's own signature image in a signature box (never anyone else's).
+    """Put a signature image in a signature box.
     Anchored at both corners so later row-height changes cannot move it out of its box."""
     img = XLImage(sig_path)
     ratio = img.width / img.height
@@ -183,7 +197,7 @@ def pick_objectives(month_rows):
     return out
 
 
-def fill(data, out_path, signature=None):
+def fill(data, out_path, signature=None, supervisor_signature=None, cso_signature=None):
     year = int(data.get('year') or 2025)
     emp, sup, cso = data.get('employee', {}), data.get('supervisor', {}), data.get('countersigning_officer', {})
     extras = data.get('extras', {}) or {}
@@ -277,6 +291,7 @@ def fill(data, out_path, signature=None):
         ws = wb[name]
         ws['D5'] = f"{periods[qi][0]}/{year} TO {periods[qi][1]}/{year}"
         ws.column_dimensions['A'].width = 19; ws.column_dimensions['B'].width = 36
+        ws.column_dimensions['F'].width = 19   # roomier supervisor signature box (F59:F61)
         for a, v in qinfo.items():
             ws[a] = v or None
             ws[a].alignment = Alignment(wrap_text=True, vertical='center', horizontal=ws[a].alignment.horizontal)
@@ -320,21 +335,32 @@ def fill(data, out_path, signature=None):
         ws['C25'] = '=SUM(C19:C24)'
         reset[name] = (5, 7, 8, 10, 11, 13, 14) + tuple(range(19, 25))
 
-    # appraisee signature (only when the nurse has supplied her own signature image)
-    if signature:
+    # signatures (only those supplied and approved): appraisee, supervisor/appraiser, counter-signing officer
+    if signature or supervisor_signature or cso_signature:
         # give every row an explicit height so no program re-computes positions differently
         for ws in wb.worksheets:
             dh = ws.sheet_format.defaultRowHeight or 15
             for r in range(1, ws.max_row + 1):
                 if ws.row_dimensions[r].height is None:
                     ws.row_dimensions[r].height = dh
-        place_signature(pms, signature, 'C124', 54)
         for mi in range(12):
-            ws = wb[month_sheets[mi]]
-            ws.row_dimensions[42].height = 48
-            place_signature(ws, signature, 'B42', 56)
-        for name in q_sheets:
-            place_signature(wb[name], signature, 'C59', 54)
+            wb[month_sheets[mi]].row_dimensions[42].height = 48
+        if signature:
+            place_signature(pms, signature, 'C124', 54)
+            for mi in range(12):
+                place_signature(wb[month_sheets[mi]], signature, 'B42', 56)
+            for name in q_sheets:
+                place_signature(wb[name], signature, 'C59', 54)
+        if supervisor_signature:
+            place_signature_fit(pms, supervisor_signature, 'I124:M126')
+            for mi in range(12):
+                place_signature_fit(wb[month_sheets[mi]], supervisor_signature, 'E42:F42', max_h=56)
+            for name in q_sheets:
+                place_signature_fit(wb[name], supervisor_signature, 'F59:F61')
+        if cso_signature:
+            place_signature_fit(pms, cso_signature, 'P124:T126')
+            for name in q_sheets:
+                place_signature_fit(wb[name], cso_signature, 'H59:J61')
 
     stage = out_path + '.stage.xlsx'
     wb.save(stage)
@@ -345,10 +371,11 @@ def fill(data, out_path, signature=None):
     return notes
 
 
-def signature_from_data(data, path):
-    """Write the nurse's approved signature (a PNG data URL saved by the form) to `path`; None if there isn't one."""
+def signature_from_data(data, path, field='signature'):
+    """Write an approved signature (a PNG data URL saved by the form) to `path`; None if there isn't one.
+    field: 'signature' (nurse), 'supervisor_signature' or 'cso_signature'."""
     import base64
-    sig = data.get('signature') or {}
+    sig = data.get(field) or {}
     png = sig.get('png') if isinstance(sig, dict) and sig.get('approved') else None
     prefix = 'data:image/png;base64,'
     if not (isinstance(png, str) and png.startswith(prefix)):
@@ -373,14 +400,23 @@ if __name__ == '__main__':
     ap.add_argument('files', nargs='+')
     ap.add_argument('--out', default='out')
     ap.add_argument('--signature', default=None, help='PNG of the appraisee\'s own signature (transparent background)')
+    ap.add_argument('--supervisor-signature', default=None, help='PNG of the supervisor\'s signature')
+    ap.add_argument('--cso-signature', default=None, help='PNG of the counter-signing officer\'s signature')
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
     for f in a.files:
         d = json.load(open(f))
         d = d.get('data', d)
         p = os.path.join(a.out, out_name(d))
-        sig = a.signature or signature_from_data(d, p + '.signature.png')
-        notes = fill(d, p, sig)
-        if sig and sig != a.signature:
-            os.remove(sig)
-        print(json.dumps({'file': p, 'signed': bool(sig), 'notes': notes}))
+        given = {'signature': a.signature, 'supervisor_signature': a.supervisor_signature, 'cso_signature': a.cso_signature}
+        sigs, temp = {}, []
+        for field, path in given.items():
+            if not path:
+                path = signature_from_data(d, f"{p}.{field}.png", field)
+                if path:
+                    temp.append(path)
+            sigs[field] = path
+        notes = fill(d, p, sigs['signature'], sigs['supervisor_signature'], sigs['cso_signature'])
+        for t in temp:
+            os.remove(t)
+        print(json.dumps({'file': p, 'signed': {k: bool(v) for k, v in sigs.items()}, 'notes': notes}))
