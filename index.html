@@ -197,7 +197,7 @@ footer.note{color:var(--muted);font-size:13px;margin-top:18px;text-align:center}
         <li>The tasks (KRAs) you worked on this year</li>
         <li>Your score for each month, if you have it</li>
       </ul>
-      <span>Service fee: <b>&#8358;<span class="price">12,400</span></b>, paid at the end by card, bank transfer or USSD through Flutterwave.</span>
+      <span>Service fee: <b>&#8358;<span class="price">3,500</span></b>, paid at the end by card, bank transfer or USSD through Flutterwave.</span>
     </div>
   </header>
 
@@ -354,9 +354,9 @@ footer.note{color:var(--muted);font-size:13px;margin-top:18px;text-align:center}
     <div id="checks"></div>
     <div class="send" id="pay_box">
       <h3 id="pay_title">Submit your details</h3>
-      <p id="pay_text">Service fee: <b>&#8358;<span class="price">12,400</span></b>. Pay securely by card, bank transfer or USSD through Flutterwave. Your answers are saved before payment starts, so nothing is lost if payment is interrupted.</p>
+      <p id="pay_text">Service fee: <b>&#8358;<span class="price">3,500</span></b>. Pay securely by card, bank transfer or USSD through Flutterwave. Your answers are saved before payment starts, so nothing is lost if payment is interrupted.</p>
       <label class="consent" for="consent"><input type="checkbox" id="consent"> <span>I confirm these details are correct, and I agree that they will be stored and used only to complete my EPMS forms.</span></label>
-      <div class="copy-row"><button type="button" class="btn primary" id="submit_btn">Save and pay &#8358;12,400</button></div>
+      <div class="copy-row"><button type="button" class="btn primary" id="submit_btn">Save and pay &#8358;3,500</button></div>
       <div class="status" id="send_status" role="status" aria-live="polite"></div>
     </div>
     <div class="send done" id="done_box" hidden>
@@ -640,7 +640,7 @@ function renderReview(){
   $("checks").innerHTML=h; $("out").textContent=toText(d); 
 }
 // ---------- backend + payment ----------
-const CONFIG = { FUNCTION_URL: "https://myebhfkovfmltoirptrl.supabase.co/functions/v1/epms-form", FLW_PUBLIC_KEY: "FLWPUBK-c2f9860cfe93041c5a8de94d0744fae0-X", PRICE: 12400 };
+const CONFIG = { FUNCTION_URL: "https://myebhfkovfmltoirptrl.supabase.co/functions/v1/epms-form", FLW_PUBLIC_KEY: "FLWPUBK-c2f9860cfe93041c5a8de94d0744fae0-X", PRICE: 3500 };
 const TOKEN_KEY = "epms-token-" + YEAR;
 let paymentStatus = "unpaid", txRef = "", paymentsReady = null;
 const params = new URLSearchParams(location.search);

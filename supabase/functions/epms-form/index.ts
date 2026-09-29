@@ -9,7 +9,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const PRICE = Number(Deno.env.get("EPMS_PRICE") ?? "12400");
+const PRICE = Number(Deno.env.get("EPMS_PRICE") ?? "3500");
 const CURRENCY = "NGN";
 const FLW = "https://api.flutterwave.com/v3";
 const FLW_SECRET_KEY = Deno.env.get("FLW_SECRET_KEY") ?? "";
