@@ -41,7 +41,7 @@ PLAIN = [('formulate goals for and direct', 'sectional goals and operations'),
          ('through the usage of the staggered appointment', 'the staggered appointment system'), ('provide, continuous training', 'staff training'),
          ('coordination of the promotion', 'the promotion exercise'), ('capacity building', 'capacity building'),
          ('task shifting', 'task shifting to allied staff'), ('optimize operating theatre', 'theatre scheduling'),
-         ('introduce preventive maintenance', 'preventive maintenance'), ('daily health talk', 'daily health talks'),
+         ('introduce preventive maintenance', 'preventive maintenance of surgical equipment'), ('daily health talk', 'daily health talks'),
          ('document attendance', 'attendance documentation'), ('regular training of staff', 'staff training')]
 
 
