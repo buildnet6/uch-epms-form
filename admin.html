@@ -155,6 +155,7 @@ textarea{min-height:70px;resize:vertical}
 .pay-form{display:grid;grid-template-columns:120px 1fr;gap:6px 10px;align-items:center;margin-top:8px}
 .pay-form label{font-size:13px;color:var(--ink-2)}
 @media (max-width:520px){ .pay-form{grid-template-columns:1fr} .kv{grid-template-columns:110px 1fr} }
+.wa-mode{display:inline-flex;align-items:center;gap:6px;color:var(--ink-2)} .wa-mode select{font:inherit;font-size:13px;padding:4px 6px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
 .help{font-size:13.5px;color:var(--ink-2);background:var(--surface-2);border-radius:10px;padding:10px 12px;margin-top:10px}
 </style>
 </head>
@@ -183,6 +184,8 @@ textarea{min-height:70px;resize:vertical}
         <a class="btn small" href="https://claude.ai/artifact/GhV57KM5Q6MdfTxo8V79np" target="_blank" rel="noopener">Workbooks (as submitted)</a>
         <button class="btn small" id="csv">Download list (CSV)</button>
         <button class="btn small primary" id="add_btn">+ Add a nurse</button>
+        <label class="small wa-mode" title="Which WhatsApp the message buttons open">WhatsApp from BuildNET via
+          <select id="wa_mode"><option value="business">WhatsApp Business app</option><option value="web">WhatsApp Web (computer)</option><option value="app">Regular WhatsApp app</option></select></label>
         <button class="btn small ghost" id="settings_btn">Passcode</button>
         <button class="btn small ghost" id="signout">Sign out</button>
       </div>
@@ -359,6 +362,26 @@ const when = s => s ? new Date(s).toLocaleString([], {day:"numeric", month:"shor
 function waNumber(p){ let d=String(p||"").replace(/\D/g,""); if(d.startsWith("0")) d="234"+d.slice(1); if(d.length===10) d="234"+d; return d.length>=12 ? d : ""; }
 function editLink(r){ return FORM_URL + "?t=" + r.edit_token; }
 function adminLink(r){ return FORM_URL + "?t=" + r.edit_token + "&admin=1"; }
+// ---------- WhatsApp: messages go out from the BuildNET number ----------
+const BUILDNET_WA = "+234 808 657 9390";
+const IS_ANDROID = /Android/i.test(navigator.userAgent), IS_MOBILE = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+let WA_MODE = (()=>{ try{ return localStorage.getItem("epms_wa_mode") || (IS_MOBILE ? "business" : "web"); }catch(e){ return IS_MOBILE ? "business" : "web"; } })();
+function waUrl(num, text){
+  const t = encodeURIComponent(text||""), plain = `https://wa.me/${num}?text=${t}`;
+  if(WA_MODE==="web") return `https://web.whatsapp.com/send?phone=${num}&text=${t}`;
+  if(WA_MODE==="business" && IS_ANDROID)   // open the WhatsApp Business app (where the BuildNET number lives), not the personal one
+    return `intent://send?phone=${num}&text=${t}#Intent;scheme=whatsapp;package=com.whatsapp.w4b;S.browser_fallback_url=${encodeURIComponent(plain)};end`;
+  return plain;
+}
+function waTarget(){ return WA_MODE==="web" ? "buildnet_whatsapp" : "_blank"; }
+function waHelp(){
+  if(WA_MODE==="web") return `Opens WhatsApp Web in one tab. Keep WhatsApp Web on this computer signed in with the BuildNET number (${BUILDNET_WA}).`;
+  if(WA_MODE==="business") return IS_ANDROID ? `Opens the WhatsApp Business app, where the BuildNET number (${BUILDNET_WA}) should be set up.` : `On iPhone the phone decides which WhatsApp opens. If it opens your personal one, keep only WhatsApp Business (BuildNET) or use WhatsApp Web.`;
+  return `Opens whichever WhatsApp this device uses by default. Check it is the BuildNET number (${BUILDNET_WA}) before sending.`;
+}
+$("wa_mode").value = WA_MODE; $("wa_mode").title = waHelp();
+$("wa_mode").onchange = e=>{ WA_MODE = e.target.value; try{ localStorage.setItem("epms_wa_mode", WA_MODE); }catch(_){} $("wa_mode").title = waHelp(); if(DATA) render(); if(openId) openDetail(openId, true); toast(waHelp()); };
+document.addEventListener("click", e=>{ const a = e.target.closest('a[href^="intent:"]'); if(a){ e.preventDefault(); location.href = a.href; } });
 function waLink(r, kind){
   const n = waNumber(r.phone); if(!n) return "";
   const first = r.first_name || "there";
@@ -369,7 +392,7 @@ function waLink(r, kind){
     unfinished: `Hello ${first}, this is BuildNET Digital Solutions. Thank you, your payment for the EPMS 2025 form is confirmed. Your form isn't complete yet: ${missingText(r)}. Please finish it here (your answers are saved): ${editLink(r)} (this link is private to you). We'll prepare your workbook as soon as it's complete.`,
     general: `Hello ${first}, this is BuildNET Digital Solutions about your UCH EPMS 2025 form.`
   };
-  return `https://wa.me/${n}?text=${encodeURIComponent(msgs[kind]||msgs.general)}`;
+  return waUrl(n, msgs[kind]||msgs.general);
 }
 
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -459,7 +482,7 @@ function personLine({r,s,p}){
   const act = [];
   if(s.key==="send"||s.key==="resend") act.push(`<button class="btn small primary" data-act="delivered" data-id="${r.id}">Mark sent</button>`);
   if(s.key==="payfail") act.push(`<button class="btn small" data-act="recheck" data-id="${r.id}">Check payment</button>`);
-  if(wa) act.push(`<a class="btn small" href="${wa}" target="_blank" rel="noopener">WhatsApp</a>`);
+  if(wa) act.push(`<a class="btn small" href="${wa}" target="${waTarget()}" rel="noopener" title="${esc(waHelp())}">WhatsApp</a>`);
   act.push(`<button class="btn small ghost" data-open="${r.id}">Details</button>`);
   return `<div class="person"><div class="who" data-open="${r.id}"><b>${esc(full(r))}</b><span class="small muted">${esc([r.unit, r.phone, hrs, p.filled+"/12 months", p.blanks?p.blanks+" blank result(s)":""].filter(Boolean).join(" · "))}</span></div><div class="acts">${act.join("")}</div></div>`;
 }
@@ -532,7 +555,7 @@ async function openDetail(id, quiet){
 
     <div class="sec"><h3>What to do</h3>
       <div class="acts" style="margin-top:8px">
-        ${waNumber(r.phone)?`<a class="btn small primary" href="${waLink(r, s.key==="payfail"?"payfail":s.key==="done"?"done":s.key==="filling"?"filling":s.key==="unfinished"?"unfinished":"general")}" target="_blank" rel="noopener">WhatsApp her${s.key==="unfinished"?" what's missing":""}</a>`:""}
+        ${waNumber(r.phone)?`<a class="btn small primary" href="${waLink(r, s.key==="payfail"?"payfail":s.key==="done"?"done":s.key==="filling"?"filling":s.key==="unfinished"?"unfinished":"general")}" target="${waTarget()}" rel="noopener" title="${esc(waHelp())}">WhatsApp her${s.key==="unfinished"?" what's missing":""}</a>`:""}
         ${r.phone?`<a class="btn small ghost" href="tel:${esc(r.phone)}">Call</a>`:""}
         ${r.email?`<a class="btn small ghost" href="mailto:${esc(r.email)}">Email</a>`:""}
         <button class="btn small ghost" id="d_json">Download her answers (.json)</button>
@@ -709,7 +732,7 @@ $("add_save").onclick=async ()=>{
     $("add_link").value = link; $("add_form").hidden=true; $("add_done").hidden=false;
     const wa = waNumber(body.employee.phone);
     $("add_wa").hidden = !wa;
-    if(wa) $("add_wa").href = `https://wa.me/${wa}?text=${encodeURIComponent(`Hello ${body.employee.first_name}, this is BuildNET Digital Solutions. Your UCH EPMS 2025 form has been set up. Open it here to check and complete your details: ${link} (this link is private to you). Any questions, just reply here.`)}`;
+    if(wa){ $("add_wa").href = waUrl(wa, `Hello ${body.employee.first_name}, this is BuildNET Digital Solutions. Your UCH EPMS 2025 form has been set up. Open it here to check and complete your details: ${link} (this link is private to you). Any questions, just reply here.`); $("add_wa").target = waTarget(); }
     await refresh(true);
   }catch(e){ $("add_err").textContent = e.code==="name_required" ? "Enter at least her surname and first name." : "Couldn't create the account. Try again."; }
   $("add_save").disabled=false;
