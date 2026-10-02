@@ -8,6 +8,9 @@ on:
   schedule:
     - cron: "*/10 * * * *"
   workflow_dispatch:
+  push:                      # a change to the builder rebuilds whatever is pending straight away
+    branches: [main]
+    paths: ["kit/**", ".github/workflows/build-workbooks.yml"]
 
 permissions:
   id-token: write
