@@ -271,6 +271,8 @@ textarea{min-height:70px;resize:vertical}
 <script>
 (function(){
 const FUNCTION_URL = "https://myebhfkovfmltoirptrl.supabase.co/functions/v1/epms-form";
+const BUILDER_URL = "https://myebhfkovfmltoirptrl.supabase.co/functions/v1/epms-builder";   // finished workbooks (built automatically)
+let BUILD = {};   // nurse id -> build state
 const FORM_URL = "https://buildnet6.github.io/uch-epms-form/";
 const SLA_HOURS = 6;
 const $ = id => document.getElementById(id);
@@ -291,6 +293,13 @@ async function call(op, extra={}){
   if(!r.ok){ const e = new Error(j.error || ("http_"+r.status)); e.code = j.error || r.status; throw e; }
   return j;
 }
+async function bcall(op, extra={}){
+  const r = await fetch(BUILDER_URL, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({action:"admin", key:KEY, op, ...extra})});
+  let j = {}; try{ j = await r.json(); }catch(e){}
+  if(!r.ok){ const e = new Error(j.error || ("http_"+r.status)); e.code = j.error || r.status; throw e; }
+  return j;
+}
+async function loadBuild(){ try{ BUILD = (await bcall("status")).status || {}; if(DATA) render(); }catch(e){} }
 function toast(msg){ const t=$("toast"); t.textContent=msg; t.hidden=false; clearTimeout(toast._t); toast._t=setTimeout(()=>t.hidden=true, 2600); }
 
 // ---------- sign in ----------
@@ -308,7 +317,7 @@ $("signout").onclick = signOut;
 // ---------- data ----------
 async function load(){
   const d = await call("overview");
-  DATA = d; render(); $("live_dot").classList.remove("off");
+  DATA = d; render(); loadBuild(); $("live_dot").classList.remove("off");
   $("updated").textContent = "Updated " + new Date().toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"});
   return d;
 }
@@ -430,8 +439,8 @@ function render(){
   const buckets = [
     ["amber", "Paid, but her form isn't finished", "She paid, but some months or answers are still empty. Message her to finish before you generate. Open her profile to see exactly what's missing.", unfinished],
     ["red", "Overdue: past the 6-hour promise", "Paid, but the workbook hasn't been sent within 6 hours. Handle these first.", overdue],
-    ["amber", "Generate or regenerate workbooks", "Paid (or complimentary) and waiting for their workbook, or edited since it was made. Ask Claude: “generate the pending EPMS workbooks”.", S.filter(x=>(x.s.key==="gen"||x.s.key==="regen") && !x.s.overdue)],
-    ["blue", "Ready to send", "Workbook generated. Send the workbook and summary, then tap “Mark sent”.", S.filter(x=>x.s.key==="send" && !x.s.overdue)],
+    ["amber", "Workbook being built", "Paid (or complimentary) with a finished form. The workbook, summary and printed PDF build automatically, usually within 15 minutes, and appear in her profile.", S.filter(x=>(x.s.key==="gen"||x.s.key==="regen") && !x.s.overdue)],
+    ["blue", "Ready to send", "Workbook built. Open her profile to view and download it, send it, then tap “Mark sent”.", S.filter(x=>x.s.key==="send" && !x.s.overdue)],
     ["amber", "Edited after sending", "She changed answers after you sent her workbook. Regenerate and resend if the change matters.", S.filter(x=>x.s.key==="resend")],
     ["red", "Tried to pay, not confirmed", "Opened the checkout but no successful payment was found. Tap “Check payment” or message her.", payfail],
     ["grey", "Started but quiet for over a day", "Started the form, not paid, no activity for 24+ hours. A friendly nudge often helps.", stale],
@@ -461,7 +470,7 @@ function render(){
   const list = S.filter(pass).sort((a,b)=> a.s.rank-b.s.rank || T(b.r.data_updated_at||b.r.created_at)-T(a.r.data_updated_at||a.r.created_at));
   $("rows").innerHTML = `<div class="row head"><div>Nurse</div><div>Status</div><div>Progress</div><div>Last activity</div></div>` +
     (list.length ? list.map(({r,s,p})=>`<div class="row" data-id="${r.id}" tabindex="0">
-      <div><b>${esc(full(r))}</b>${r.is_test?' <span class="badge b-grey">test</span>':''}${r.complimentary?' <span class="badge b-blue">free</span>':''}${r.source==="admin"?' <span class="badge b-grey">added by you</span>':''}${r.archived?' <span class="badge b-grey">archived</span>':''}${r.autofill&&r.autofill.at?' <span class="badge b-blue">auto-completed</span>':''}<div class="small muted">${esc([r.designation, r.unit, r.ippis && "IPPIS "+r.ippis].filter(Boolean).join(" · "))}</div></div>
+      <div><b>${esc(full(r))}</b>${r.is_test?' <span class="badge b-grey">test</span>':''}${r.complimentary?' <span class="badge b-blue">free</span>':''}${r.source==="admin"?' <span class="badge b-grey">added by you</span>':''}${r.archived?' <span class="badge b-grey">archived</span>':''}${r.autofill&&r.autofill.at?' <span class="badge b-blue">auto-completed</span>':''}${wbBadge(r)}<div class="small muted">${esc([r.designation, r.unit, r.ippis && "IPPIS "+r.ippis].filter(Boolean).join(" · "))}</div></div>
       <div><span class="badge ${s.cls}">${esc(s.label)}</span>${r.payment_status==="paid"?`<div class="small muted">${naira(r.amount_paid)} · ${ago(r.paid_at)}</div>`:""}</div>
       <div class="small">${p.filled}/12 months${p.blanks?` · <span style="color:var(--danger)">${p.blanks} blank</span>`:""}<div class="bar"><i style="width:${Math.round(p.filled/12*100)}%"></i></div></div>
       <div class="small muted">${ago(r.data_updated_at||r.created_at)}</div></div>`).join("")
@@ -520,6 +529,8 @@ async function openDetail(id, quiet){
     <div class="panel-head"><div><div class="eyebrow">Nurse profile</div><h2 id="d_name">${esc(full(r))}</h2><div class="small muted">${esc([r.designation, r.unit, r.ippis && "IPPIS "+r.ippis].filter(Boolean).join(" · "))}</div></div><button class="btn small ghost" id="d_close">Close</button></div>
     <span class="badge ${s.cls}">${esc(s.label)}</span> ${r.is_test?'<span class="badge b-grey">test profile</span>':''} ${r.complimentary?'<span class="badge b-blue">complimentary</span>':''} ${r.source==="admin"?'<span class="badge b-grey">added by you</span>':''} ${r.archived?'<span class="badge b-grey">archived</span>':''}
     <div id="d_twins"></div>
+
+    <div class="sec"><h3>Her workbook</h3><div id="d_wb"><p class="muted small">Checking for her workbook…</p></div></div>
 
     <div class="sec"><h3>Where she is</h3>
       <div class="months" style="margin:8px 0">${months}</div>
@@ -607,6 +618,7 @@ async function openDetail(id, quiet){
   $("d_json").onclick = ()=>{ if(!DET){ toast("Still loading her answers"); return; }
     const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([JSON.stringify(DET.full, null, 1)], {type:"application/json"}));
     a.download=`EPMS_2025_${(r.surname||"nurse").replace(/\W+/g,"_")}_${(r.first_name||"").replace(/\W+/g,"_")}.json`; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),2000); };
+  paintWorkbook(r);
   if(DET && DET.id===id) paintDetail(r, DET);
   try{
     const det = await call("detail", {id});
@@ -617,6 +629,46 @@ async function openDetail(id, quiet){
       cso_signature: det.signatures?.sig_cso ? {png:det.signatures.sig_cso, approved:true, consent:true} : null}};
     paintDetail(r, DET);
   }catch(e){ if(openId===id){ $("d_answers").innerHTML = `<p class="err">Couldn't load her answers. Tap Refresh.</p>`; $("d_feed").innerHTML=""; } }
+}
+function wbBadge(r){
+  const b = BUILD[r.id]; if(!b) return "";
+  if(b.queued) return ' <span class="badge b-amber">workbook building</span>';
+  if(b.built_at) return ' <span class="badge b-green">workbook ready</span>';
+  return "";
+}
+async function paintWorkbook(r){
+  const box = $("d_wb"); if(!box) return;
+  let f;
+  try{ f = await bcall("files", {id:r.id}); }catch(e){ box.innerHTML = `<p class="err">Couldn't check her workbook. Tap Refresh.</p>`; return; }
+  if(openId!==r.id || !$("d_wb")) return;
+  const b = BUILD[r.id] || {};
+  const settled = r.payment_status==="paid" || r.complimentary;
+  const pick = re => f.files.find(x=>re.test(x.name));
+  const xl = pick(/\.xlsx$/), pr = pick(/_Printed\.pdf$/), sm = pick(/_Summary\.pdf$/);
+  const rep = f.report || {};
+  let html = "";
+  if(f.files.length){
+    html += `<p class="small">Built ${when(f.built_at)}${b.queued?' · <b style="color:var(--warn,#b26a00)">her answers changed since, a new build is on its way</b>':""}</p>
+      <div class="acts" style="margin-top:6px">
+        ${pr?`<a class="btn small primary" href="${pr.view}" target="_blank" rel="noopener">View printed workbook</a>`:""}
+        ${xl?`<a class="btn small primary" href="${xl.download}">Download workbook (.xlsx)</a>`:""}
+        ${pr?`<a class="btn small" href="${pr.download}">Download printed PDF</a>`:""}
+        ${sm?`<a class="btn small" href="${sm.view}" target="_blank" rel="noopener">View summary</a><a class="btn small" href="${sm.download}">Download summary</a>`:""}
+      </div>
+      <p class="small muted" style="margin-top:6px">${rep.results_total!=null?`${rep.results_met} of ${rep.results_total} results at or above target`:""}${rep.quarters?` · quarterly scores ${rep.quarters.map(q=>q==null?"–":q).join(", ")}`:""}${rep.pages?` · ${rep.pages} printed pages`:""}</p>
+      ${(rep.flags||[]).length?`<div class="help"><b>Worth a look before sending:</b><ul style="margin:4px 0 0 18px">${rep.flags.map(x=>`<li>${esc(x)}</li>`).join("")}</ul></div>`:""}
+      <p class="small muted">Links work for an hour; reopen her profile for fresh ones.</p>`;
+  } else if(f.error){
+    html += `<p class="err">The last build failed (${esc(f.error)}). Tap “Build again”, or ask Claude to look at it.</p>`;
+  } else if(!settled){
+    html += `<p class="small muted">Her workbook builds automatically once she has paid (or you make her complimentary) and her form is complete.</p>`;
+  } else if(b.complete===false){
+    html += `<p class="small muted">Paid, but her form isn't complete yet, so nothing has been built. See “Where she is” below.</p>`;
+  } else {
+    html += `<p class="small"><b>Being built now.</b> Her workbook, summary and printed PDF usually appear here within 15 minutes.</p>`;
+  }
+  if(settled) html += `<div class="acts" style="margin-top:8px"><button class="btn small ghost" data-act="rebuild" data-id="${r.id}">${f.files.length?"Build again":"Build now"}</button></div>`;
+  box.innerHTML = html;
 }
 function autoLine(r){
   const a = r.autofill;
@@ -670,7 +722,8 @@ async function act(kind, id, btn){
                 archive:{archived:true}, unarchive:{archived:false} };
   if(btn) btn.disabled=true;
   try{
-    if(kind==="recheck"){ if(btn) btn.textContent="Checking Flutterwave…";
+    if(kind==="rebuild"){ await bcall("rebuild", {id}); toast("Queued. The new build appears here within about 15 minutes."); await loadBuild(); }
+    else if(kind==="recheck"){ if(btn) btn.textContent="Checking Flutterwave…";
       const r = await call("recheck", {id}); CHECK[id] = r;
       toast(r.payment_status==="paid" ? "Payment found and confirmed. Marked as paid." : r.found.length ? "Flutterwave has an attempt, but it isn't successful yet." : "Flutterwave has no payment for her yet."); }
     else if(kind==="mark_paid"){ const amount=Number($("d_amt").value), note=$("d_pnote").value.trim();

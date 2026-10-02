@@ -1,0 +1,49 @@
+name: Build EPMS workbooks
+
+# Every 10 minutes: build the workbook, summary and printed PDF for any nurse who has paid (or is complimentary),
+# has a finished form, and doesn't yet have an up-to-date workbook. Files go to private storage; the admin
+# dashboard shows and downloads them. No keys are stored here: the backend trusts only this workflow's
+# GitHub-signed identity token.
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: build-workbooks
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Anything to build?
+        id: check
+        run: python3 kit/ci_builder.py --check >> "$GITHUB_OUTPUT"
+
+      - name: Install LibreOffice and fonts
+        if: steps.check.outputs.pending == 'yes'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends libreoffice-calc-nogui poppler-utils \
+            fonts-dejavu-core fonts-liberation fonts-crosextra-carlito fonts-crosextra-caladea > /dev/null
+
+      - uses: actions/setup-python@v5
+        if: steps.check.outputs.pending == 'yes'
+        with:
+          python-version: "3.11"
+
+      - name: Install Python packages
+        if: steps.check.outputs.pending == 'yes'
+        run: pip install -q openpyxl==3.1.5 reportlab==4.4.10 pypdf==3.17.4 pillow==12.2.0 numpy scipy cryptography
+
+      - name: Build pending workbooks
+        if: steps.check.outputs.pending == 'yes'
+        run: python kit/ci_builder.py

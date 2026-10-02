@@ -230,6 +230,28 @@ def pick_objectives(month_rows):
     return out
 
 
+def order_sheets(wb):
+    """Tabs in reading order: the closed contracts, the open contract, then Jan, Feb, Mar, Q1, Apr, May, Jun, Q2 ... Dec, Q4."""
+    def key(i_ws):
+        i, ws = i_ws
+        n = ws.title.strip().upper()
+        if n.startswith('PMS CONTRACT'):
+            return (0, 1 if 'OPENED' in n else 0, i)
+        for mi, m in enumerate(MONTH_ABBR):
+            if n.startswith(m + ' '):
+                return (1, mi, 0)
+        q = re.match(r'Q([1-4]) ', n)
+        if q:
+            return (1, int(q.group(1)) * 3 - 1, 1)      # right after the quarter's third month
+        return (2, 0, i)
+    active = wb.active.title if wb.active is not None else None
+    wb._sheets = [ws for _, ws in sorted(enumerate(wb._sheets), key=key)]
+    if active:
+        wb.active = wb._sheets.index(wb[active])
+    for ws in wb.worksheets:
+        ws.sheet_view.tabSelected = ws is wb.active
+
+
 def fill(data, out_path, signature=None, supervisor_signature=None, cso_signature=None):
     year = int(data.get('year') or 2025)
     emp, sup, cso = data.get('employee', {}), data.get('supervisor', {}), data.get('countersigning_officer', {})
@@ -423,6 +445,7 @@ def fill(data, out_path, signature=None, supervisor_signature=None, cso_signatur
     own_c = ((data.get('contract') or {}).get('appraisee_comment') or '').strip()
     if own_c:
         pms['C120'] = own_c
+    order_sheets(wb)
     stage = out_path + '.stage.xlsx'
     wb.save(stage)
     sys.path.insert(0, HERE)
