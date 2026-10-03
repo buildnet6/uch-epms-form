@@ -45,7 +45,11 @@ PLAIN = [('formulate goals for and direct', 'sectional goals and operations'),
          ('document attendance', 'attendance documentation'), ('regular training of staff', 'staff training'),
          ('conduct regular individual and psychological', 'one-to-one psychological sessions'), ('implement structured admission-to-discharge', 'discharge planning'),
          ('routine disinfection, disinfestation', 'ward disinfection'), ('5) to conduct regular wards rounds', 'multidisciplinary ward rounds'),
-         ('conduct routine clinical supervision', 'clinical supervision of students')]
+         ('conduct routine clinical supervision', 'clinical supervision of students'),
+         ('typing and dispatch of official', 'official correspondence'), ("typing of students' transcripts", 'transcripts and reference requests'),
+         ('typing and confidential custody', 'examination questions'), ('organising departmental meetings', 'departmental meetings and minutes'),
+         ('receipt, registration and routing', 'mail and records'), ('preparation of staff salary log', 'the salary log and imprest records'),
+         ('attending to visitors', 'visitors, enquiries and calls')]
 
 
 def short(text, n=48):
