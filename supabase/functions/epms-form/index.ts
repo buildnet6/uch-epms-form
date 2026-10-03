@@ -15,7 +15,10 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { autofill } from "./autofill.ts";
 
-const PRICE = Number(Deno.env.get("EPMS_PRICE") ?? "3500");
+// The price lives in the database (epms_private: price, price_previous, price_changed_at) so it can change without a deploy.
+let PRICE = Number(Deno.env.get("EPMS_PRICE") ?? "5000");
+let OLD_PRICE = 0, PRICE_SINCE = 0, priceAt = 0;
+const OLD_PRICE_GRACE = 24 * 3_600_000;   // a checkout opened at the old price just before a change still counts for a day
 const CURRENCY = "NGN";
 const FLW = "https://api.flutterwave.com/v3";
 const FLW_SECRET_KEY = Deno.env.get("FLW_SECRET_KEY") ?? "";
@@ -60,10 +63,26 @@ async function flwGet(path: string) {
 const belongsTo = (row: any, ref: unknown) =>
   typeof ref === "string" && (ref === row.tx_ref || ref.startsWith(row.tx_ref + "-"));
 
+async function refreshPrice() {
+  if (Date.now() - priceAt < 60_000) return;
+  priceAt = Date.now();
+  const { data } = await db.from("epms_private").select("name, value").in("name", ["price", "price_previous", "price_changed_at"]);
+  const m: Record<string, string> = Object.fromEntries((data ?? []).map((r: any) => [r.name, r.value]));
+  if (Number(m.price) > 0) PRICE = Number(m.price);
+  OLD_PRICE = Number(m.price_previous) || 0;
+  PRICE_SINCE = m.price_changed_at ? Date.parse(m.price_changed_at) || 0 : 0;
+}
+function amountOk(tx: any) {
+  const amt = Number(tx.amount);
+  if (amt >= PRICE) return true;
+  const at = Date.parse(tx.created_at ?? "") || 0;
+  return OLD_PRICE > 0 && amt >= OLD_PRICE && at > 0 && at < PRICE_SINCE + OLD_PRICE_GRACE;
+}
+
 async function markPaidIfValid(row: any, tx: any) {
   if (!tx) return { ok: false, reason: "not_found" };
   const good = tx.status === "successful" && belongsTo(row, tx.tx_ref) &&
-    tx.currency === CURRENCY && Number(tx.amount) >= PRICE;
+    tx.currency === CURRENCY && amountOk(tx);
   if (!good) return { ok: false, reason: tx.status === "successful" ? "mismatch" : "pending" };
   if (row.payment_status !== "paid") {
     const { error } = await db.from("epms_submissions").update({
@@ -322,6 +341,7 @@ async function admin(req: Request, body: any) {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
+  await refreshPrice().catch(() => {});
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
   const url = new URL(req.url);
 
