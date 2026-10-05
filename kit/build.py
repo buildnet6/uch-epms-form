@@ -47,7 +47,7 @@ def build(data, outdir, signature=None, supervisor_signature=None, cso_signature
     met = total = 0
     below = []
     for m in (data.get('monthly') or [])[:12]:
-        for row in (m.get('rows') or [])[:5]:
+        for row in (m.get('rows') or [])[:6]:
             v = fill_epms.num_val(row.get('output'))
             cr = contract.find(row.get('code', ''), row.get('kra', '')) if row.get('kra') else None
             if v is None or not cr:

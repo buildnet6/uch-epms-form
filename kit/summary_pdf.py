@@ -166,7 +166,7 @@ def summary(data, out_path, compact=0):
     issues = Counter()
     issue_months = {}
     for mi, m in enumerate(monthly):
-        for r in (m.get('rows') or [])[:5]:
+        for r in (m.get('rows') or [])[:6]:
             text = (r.get('kra') or '').strip()
             if not text:
                 continue
@@ -210,7 +210,7 @@ def summary(data, out_path, compact=0):
     months_filled = len({e[0] for e in filled})
     met = sum(1 for e in filled if e[4])
     blanks = [f"{MONTHS[mi]} task {ri + 1}" for mi, m in enumerate(monthly)
-              for ri, r in enumerate((m.get('rows') or [])[:5]) if (r.get('kra') or '').strip() and num_val(r.get('output')) is None]
+              for ri, r in enumerate((m.get('rows') or [])[:6]) if (r.get('kra') or '').strip() and num_val(r.get('output')) is None]
     ppl = Table([[Paragraph("<font color='#6B7667' size='6.8'>APPRAISEE</font>", S_CELL),
                   Paragraph("<font color='#6B7667' size='6.8'>SUPERVISOR (APPRAISER)</font>", S_CELL),
                   Paragraph("<font color='#6B7667' size='6.8'>COUNTER-SIGNING OFFICER</font>", S_CELL)],
