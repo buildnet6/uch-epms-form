@@ -20,7 +20,10 @@ def place_signature_fit(ws, sig_path, rng, max_h=54, pad=5):
     from openpyxl.utils.cell import range_boundaries
     c1, r1, c2, r2 = range_boundaries(rng)
     dw = ws.sheet_format.defaultColWidth or 8.43; dh = ws.sheet_format.defaultRowHeight or 15
-    box_w = sum(int(((ws.column_dimensions[get_column_letter(c)].width or dw) * 7) + 5) for c in range(c1, c2 + 1))
+    def cw(c):                                   # read widths without creating column entries (they change wrapping)
+        d = ws.column_dimensions.get(get_column_letter(c))
+        return (d.width if d is not None and d.width else dw)
+    box_w = sum(int(cw(c) * 7 + 5) for c in range(c1, c2 + 1))
     box_h = sum(int((ws.row_dimensions[r].height or dh) * 96 / 72) for r in range(r1, r2 + 1))
     img = XLImage(sig_path); ratio = img.width / img.height
     h = min(max_h, box_h - 2 * pad)
@@ -456,24 +459,32 @@ def fill(data, out_path, signature=None, supervisor_signature=None, cso_signatur
             for r in range(1, ws.max_row + 1):
                 if ws.row_dimensions[r].height is None:
                     ws.row_dimensions[r].height = dh
+        # taller signature rows so a signature prints at a readable size (about 2 cm high)
+        SIG_PT = 66
         for mi in range(12):
-            wb[month_sheets[mi]].row_dimensions[42].height = 48
+            wb[month_sheets[mi]].row_dimensions[42].height = SIG_PT
+        for r in (124, 125, 126):
+            pms.row_dimensions[r].height = SIG_PT / 3
+        for name in q_sheets:
+            for r in (59, 60, 61):
+                wb[name].row_dimensions[r + qoff[name]].height = SIG_PT / 3
+        big = int(SIG_PT * 96 / 72) - 10                     # pixels: box height less a small margin
         if signature:
-            place_signature(pms, signature, 'C124', 54)
+            place_signature_fit(pms, signature, 'C124:G126', max_h=big)
             for mi in range(12):
-                place_signature(wb[month_sheets[mi]], signature, 'B42', 56)
+                place_signature_fit(wb[month_sheets[mi]], signature, 'B42:C42', max_h=big)
             for name in q_sheets:
-                place_signature(wb[name], signature, f'C{59 + qoff[name]}', 54)
+                place_signature_fit(wb[name], signature, f'C{59 + qoff[name]}:D{61 + qoff[name]}', max_h=big)
         if supervisor_signature:
-            place_signature_fit(pms, supervisor_signature, 'I124:M126')
+            place_signature_fit(pms, supervisor_signature, 'I124:M126', max_h=big)
             for mi in range(12):
-                place_signature_fit(wb[month_sheets[mi]], supervisor_signature, 'E42:F42', max_h=56)
+                place_signature_fit(wb[month_sheets[mi]], supervisor_signature, 'E42:F42', max_h=big)
             for name in q_sheets:
-                place_signature_fit(wb[name], supervisor_signature, f'F{59 + qoff[name]}:F{61 + qoff[name]}')
+                place_signature_fit(wb[name], supervisor_signature, f'F{59 + qoff[name]}:F{61 + qoff[name]}', max_h=big)
         if cso_signature:
-            place_signature_fit(pms, cso_signature, 'P124:T126')
+            place_signature_fit(pms, cso_signature, 'P124:T126', max_h=big)
             for name in q_sheets:
-                place_signature_fit(wb[name], cso_signature, f'H{59 + qoff[name]}:J{61 + qoff[name]}')
+                place_signature_fit(wb[name], cso_signature, f'H{59 + qoff[name]}:J{61 + qoff[name]}', max_h=big)
 
     if n_custom:
         pms.delete_rows(CUSTOM_ROW0, 60)                   # scratch rows are not part of the workbook
