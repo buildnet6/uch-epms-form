@@ -8,6 +8,7 @@ from copy import copy
 from datetime import datetime
 import openpyxl
 from openpyxl.styles import Alignment
+from openpyxl.cell.cell import MergedCell
 from openpyxl.drawing.image import Image as XLImage
 from openpyxl.drawing.spreadsheet_drawing import TwoCellAnchor, AnchorMarker
 from openpyxl.utils.units import pixels_to_EMU
@@ -230,6 +231,37 @@ def pick_objectives(month_rows):
     return out
 
 
+Q_ROWS = 6       # task rows printed on a blank quarterly appraisal (19-24)
+Q_MAX = 10       # most tasks one quarterly appraisal will take; extra rows are inserted above the totals row
+
+
+def expand_quarter(ws, extra):
+    """Make room for `extra` more task rows on a quarterly appraisal: insert them above the totals row (25) and move
+    everything below down, keeping merged boxes, row heights and formulas pointing at the right cells."""
+    if extra <= 0:
+        return
+    below = sorted([(r, d.height) for r, d in ws.row_dimensions.items() if r >= 25 and d.height is not None], reverse=True)
+    merged = [m for m in ws.merged_cells.ranges if m.min_row >= 25]
+    for m in merged:
+        ws.merged_cells.remove(m)
+    ws.insert_rows(25, extra)
+    for m in merged:
+        m.shift(0, extra)
+        ws.merged_cells.add(m)
+    for r, h in below:
+        ws.row_dimensions[r + extra].height = h
+        ws.row_dimensions[r].height = None
+    ref = re.compile(r"(\$?[A-Z]{1,3}\$?)(\d+)")
+
+    def shift(f):
+        f = ref.sub(lambda m: m.group(1) + str(int(m.group(2)) + extra) if int(m.group(2)) >= 25 else m.group(0), f)
+        return re.sub(r"([A-Z]{1,3})19:([A-Z]{1,3})24\b", lambda m: f"{m.group(1)}19:{m.group(2)}{24 + extra}", f)
+    for row in ws.iter_rows():
+        for c in row:
+            if isinstance(c.value, str) and c.value.startswith('=') and not isinstance(c, MergedCell):
+                c.value = shift(c.value)
+
+
 def order_sheets(wb):
     """Tabs in reading order: the closed contracts, the open contract, then Jan, Feb, Mar, Q1, Apr, May, Jun, Q2 ... Dec, Q4."""
     def key(i_ws):
@@ -358,6 +390,7 @@ def fill(data, out_path, signature=None, supervisor_signature=None, cso_signatur
     }
     periods = [('01/01', '31/03'), ('01/04', '30/06'), ('01/07', '30/09'), ('01/10', '31/12')]
     reset = {month_sheets[mi]: (12, 13, 14, 15, 16, 24, 27, 30, 34, 37, 39, 40) for mi in range(12)}
+    qoff = {}
     for qi, name in enumerate(q_sheets):
         ws = wb[name]
         ws['D5'] = f"{periods[qi][0]}/{year} TO {periods[qi][1]}/{year}"
@@ -372,9 +405,12 @@ def fill(data, out_path, signature=None, supervisor_signature=None, cso_signatur
                 key = (row['code'], norm(row['kra']))
                 if row['kra'] and key not in seen:
                     seen.add(key); ks.append(row)
-        if len(ks) > 6:
-            notes.append(f"Q{qi+1}: {len(ks)} different tasks, only the first 6 fit on the appraisal page")
-            ks = ks[:6]
+        if len(ks) > Q_MAX:
+            notes.append(f"Q{qi+1}: {len(ks)} different tasks, only the first {Q_MAX} fit on the appraisal page")
+            ks = ks[:Q_MAX]
+        off = max(0, len(ks) - Q_ROWS)
+        expand_quarter(ws, off)
+        qoff[name] = off
         for i, row in enumerate(ks):
             r = 19 + i
             if r > 19:
@@ -389,7 +425,7 @@ def fill(data, out_path, signature=None, supervisor_signature=None, cso_signatur
                 ws.cell(r, 3).number_format = ws.cell(r, 5).number_format
                 ws.cell(r, 4).value = ' '.join(str(pms.cell(cr, 7).value or '').split()) or None
                 ws.cell(r, 5).value = pms.cell(cr, 11).value
-                ws.cell(r, 6).value = f'=E{r}/$E$25*70'
+                ws.cell(r, 6).value = f'=E{r}/$E${25 + off}*70'
                 ws.cell(r, 7).value = ' '.join(str(pms.cell(cr, 14).value or '').split()) or None
                 ws.cell(r, 8).value = pms.cell(cr, 13).value
                 if isinstance(ws.cell(r, 8).value, (int, float)) and ws.cell(r, 8).value <= 1 and str(pms.cell(cr, 19).value).strip() == '%':
@@ -403,13 +439,13 @@ def fill(data, out_path, signature=None, supervisor_signature=None, cso_signatur
             for c in range(1, 16):
                 ws.cell(r, c).alignment = Alignment(wrap_text=True, vertical='center',
                                                     horizontal='center' if c in (1, 3, 5, 6, 8, 9) or c >= 10 else 'left')
-        ws['C25'] = '=SUM(C19:C24)'
+        ws.cell(25 + off, 3).value = f'=SUM(C19:C{24 + off})'
         by_key = {}
         for mi in range(qi * 3, qi * 3 + 3):
             for e in month_entries[mi]:
                 by_key.setdefault((e.row['code'], norm(e.row['kra'])), []).append(e)
-        review.fill_quarter(ws, qi, ks, by_key, contract, pms, data, year)
-        reset[name] = (5, 7, 8, 10, 11, 13, 14) + tuple(range(19, 25)) + tuple(range(30, 45)) + (52, 54, 55, 56, 57, 58)
+        review.fill_quarter(ws, qi, ks, by_key, contract, pms, data, year, off)
+        reset[name] = (5, 7, 8, 10, 11, 13, 14) + tuple(range(19, 25 + off)) + tuple(r + off for r in list(range(30, 45)) + [52, 54, 55, 56, 57, 58])
 
     # signatures (only those supplied and approved): appraisee, supervisor/appraiser, counter-signing officer
     if signature or supervisor_signature or cso_signature:
@@ -426,17 +462,17 @@ def fill(data, out_path, signature=None, supervisor_signature=None, cso_signatur
             for mi in range(12):
                 place_signature(wb[month_sheets[mi]], signature, 'B42', 56)
             for name in q_sheets:
-                place_signature(wb[name], signature, 'C59', 54)
+                place_signature(wb[name], signature, f'C{59 + qoff[name]}', 54)
         if supervisor_signature:
             place_signature_fit(pms, supervisor_signature, 'I124:M126')
             for mi in range(12):
                 place_signature_fit(wb[month_sheets[mi]], supervisor_signature, 'E42:F42', max_h=56)
             for name in q_sheets:
-                place_signature_fit(wb[name], supervisor_signature, 'F59:F61')
+                place_signature_fit(wb[name], supervisor_signature, f'F{59 + qoff[name]}:F{61 + qoff[name]}')
         if cso_signature:
             place_signature_fit(pms, cso_signature, 'P124:T126')
             for name in q_sheets:
-                place_signature_fit(wb[name], cso_signature, 'H59:J61')
+                place_signature_fit(wb[name], cso_signature, f'H{59 + qoff[name]}:J{61 + qoff[name]}')
 
     if n_custom:
         pms.delete_rows(CUSTOM_ROW0, 60)                   # scratch rows are not part of the workbook

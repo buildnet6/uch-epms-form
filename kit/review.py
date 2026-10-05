@@ -166,8 +166,10 @@ def level_phrase(pct):
     return 'Poor'
 
 
-def fill_quarter(ws, qi, ks, entries_by_key, contract, pms, data, year):
-    """ks: task rows already written at 19.. by fill(); entries_by_key: {(code, norm kra): [Entry,...]} for the quarter."""
+def fill_quarter(ws, qi, ks, entries_by_key, contract, pms, data, year, off=0):
+    """ks: task rows already written at 19.. by fill(); entries_by_key: {(code, norm kra): [Entry,...]} for the quarter.
+    off: task rows added above the totals row (more than 6 tasks), so everything from row 25 down sits `off` rows lower."""
+    R = lambda r: r + off
     from fill_epms import norm
     Task, _ = _task_cls()
     extras = data.get('extras') or {}
@@ -197,26 +199,26 @@ def fill_quarter(ws, qi, ks, entries_by_key, contract, pms, data, year):
     level = (sum(marks_list) / len(marks_list)) if marks_list else 80
 
     # Section 5 competencies (20 marks) and Section 6 operations (10 marks)
-    comp_rows = {30: 104, 31: 105, 32: 106, 34: 108, 35: 109, 36: 110, 38: 112, 39: 113, 40: 114}
-    targets = {30: 4, 31: 3, 32: 3, 34: 2, 35: 2, 36: 1, 38: 2, 39: 2, 40: 1}
+    comp_rows = {R(30): 104, R(31): 105, R(32): 106, R(34): 108, R(35): 109, R(36): 110, R(38): 112, R(39): 113, R(40): 114}
+    targets = dict(zip(comp_rows, (4, 3, 3, 2, 2, 1, 2, 2, 1)))
     deduct = 0 if level >= 95 else 1 if level >= 88 else 2 if level >= 80 else 3
-    order = [31, 36, 32][:deduct]
+    order = [R(31), R(36), R(32)][:deduct]
     for qr, cr in comp_rows.items():
         ws.cell(qr, 3).value = ' '.join(str(pms.cell(cr, 6).value or '').split()) or None
         ws.cell(qr, 3).alignment = WRAP
         ws.cell(qr, 8).value = targets[qr]
         ws.cell(qr, 9).value = targets[qr] - (1 if qr in order and targets[qr] > 1 else 0)
-    for qr, cr in {42: 116, 43: 117, 44: 118}.items():
+    for qr, cr in {R(42): 116, R(43): 117, R(44): 118}.items():
         ws.cell(qr, 3).value = ' '.join(str(pms.cell(cr, 6).value or '').split()) or None
         ws.cell(qr, 3).alignment = WRAP
-    ws['I44'] = 3 if level >= 85 else 2
-    for qr in list(comp_rows) + [42, 43, 44]:
+    ws.cell(R(44), 9).value = 3 if level >= 85 else 2
+    for qr in list(comp_rows) + [R(42), R(43), R(44)]:
         for c in (8, 9):
             ws.cell(qr, c).alignment = Alignment(horizontal='center', vertical='center')
 
     # Section 6 summary
-    ws['O47'] = '=R25'; ws['O48'] = '=I41'; ws['O49'] = '=I45'
-    for a in ('O47', 'O48', 'O49', 'O50'):
+    ws[f'O{R(47)}'] = f'=R{R(25)}'; ws[f'O{R(48)}'] = f'=I{R(41)}'; ws[f'O{R(49)}'] = f'=I{R(45)}'
+    for a in (f'O{R(47)}', f'O{R(48)}', f'O{R(49)}', f'O{R(50)}'):
         ws[a].number_format = '0.0'; ws[a].alignment = Alignment(horizontal='center', vertical='center')
 
     # strengths / areas for improvement / comments
@@ -254,17 +256,17 @@ def fill_quarter(ws, qi, ks, entries_by_key, contract, pms, data, year):
 
     qd = ((data.get('quarterly') or [])[qi] or {}) if len(data.get('quarterly') or []) > qi else {}
     ov = lambda k: (qd.get(k) or '').strip()      # admin-written text for this quarter, when supplied
-    ws['B52'] = ov('strengths') or strengths; ws['B54'] = ov('improvement') or improve
-    ws['C55'] = ov('appraisee_comment') or appraisee
-    ws['E55'] = "Supervisor's Comment\n" + (ov('supervisor_comment') or supervisor)
-    ws['G55'] = "Counter Supervisor's Comment"
-    ws['H55'] = ov('cso_comment') or cso
-    for a in ('B52', 'B54', 'C55', 'H55'):
+    ws[f'B{R(52)}'] = ov('strengths') or strengths; ws[f'B{R(54)}'] = ov('improvement') or improve
+    ws[f'C{R(55)}'] = ov('appraisee_comment') or appraisee
+    ws[f'E{R(55)}'] = "Supervisor's Comment\n" + (ov('supervisor_comment') or supervisor)
+    ws[f'G{R(55)}'] = "Counter Supervisor's Comment"
+    ws[f'H{R(55)}'] = ov('cso_comment') or cso
+    for a in (f'B{R(52)}', f'B{R(54)}', f'C{R(55)}', f'H{R(55)}'):
         ws[a].alignment = WRAP
-    ws['E55'].alignment = Alignment(wrap_text=True, vertical='top', horizontal='left')
+    ws[f'E{R(55)}'].alignment = Alignment(wrap_text=True, vertical='top', horizontal='left')
     # dates: the quarter's last day
     m, d = QUARTER_END[qi]
-    for a in ('C62', 'F62', 'H62'):
+    for a in (f'C{R(62)}', f'F{R(62)}', f'H{R(62)}'):
         ws[a] = datetime(year, m, d)
         ws[a].number_format = 'dd/mm/yyyy'
         ws[a].alignment = Alignment(horizontal='center', vertical='center')

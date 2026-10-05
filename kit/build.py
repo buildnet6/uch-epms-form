@@ -35,7 +35,9 @@ def build(data, outdir, signature=None, supervisor_signature=None, cso_signature
     quarters = []
     for name in wb.sheetnames:
         if 'APPRAISAL' in name:
-            v = wb[name]['O50'].value
+            ws = wb[name]
+            row = next((i for i in range(40, ws.max_row + 1) if str(ws.cell(i, 6).value or '').startswith('OVERALL RATING')), 50)
+            v = ws.cell(row, 15).value
             quarters.append(round(v, 1) if isinstance(v, (int, float)) else None)
 
     # results against target, the same way the summary judges them
