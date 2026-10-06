@@ -54,7 +54,12 @@ PLAIN = [('formulate goals for and direct', 'sectional goals and operations'),
          ('managing hospital facilities', 'coordination of school meetings'), ('human resource management system', 'personnel records and the salary log'),
          ('financial accountability, regulatory', 'imprest records'), ('information and public relations', 'visitors, enquiries and calls'),
          ('improve governance for effective service delivery: pms', 'the PMS cascade'), ('improve governance for effective service delivery: ecm', 'ECM compliance'),
-         ('materials allocation', 'stationery and office inventory'), ('staff welfare', 'promotion papers for eligible staff')]
+         ('materials allocation', 'stationery and office inventory'), ('staff welfare', 'promotion papers for eligible staff'),
+         ('proper keeping of academic records', 'academic records and correspondence'), ('disseminate circulars', 'HR circulars and the salary log'),
+         ('compliance with periodic revenue', 'imprest receipts for verification'), ('request for the necessary items', 'records of store items'),
+         ('periodic evaluation of students', 'examination questions'), ('recommendation of staff with exceptional', 'the staff recommendation list'),
+         ('capacity building programmes and trainings: request', 'study request letters'), ('capacity building programmes and trainings: dispatch', 'dispatch of request letters'),
+         ('posting of school flyer', 'the admission flyer')]
 
 
 def short(text, n=48):
@@ -207,6 +212,9 @@ def fill_quarter(ws, qi, ks, entries_by_key, contract, pms, data, year, off=0):
     comp_rows = {R(30): 104, R(31): 105, R(32): 106, R(34): 108, R(35): 109, R(36): 110, R(38): 112, R(39): 113, R(40): 114}
     targets = dict(zip(comp_rows, (4, 3, 3, 2, 2, 1, 2, 2, 1)))
     deduct = 0 if level >= 95 else 1 if level >= 88 else 2 if level >= 80 else 3
+    qd0 = ((data.get('quarterly') or [])[qi] or {}) if len(data.get('quarterly') or []) > qi else {}
+    if isinstance(qd0.get('competency_deduct'), int):          # the supervisor's own view of competencies (0-3 marks off)
+        deduct = max(0, min(3, qd0['competency_deduct']))
     order = [R(31), R(36), R(32)][:deduct]
     for qr, cr in comp_rows.items():
         ws.cell(qr, 3).value = ' '.join(str(pms.cell(cr, 6).value or '').split()) or None
