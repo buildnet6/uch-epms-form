@@ -234,7 +234,7 @@ def pick_objectives(month_rows):
     return out
 
 
-M_MAX = 6        # most tasks reported in one month (the monthly page has rows 12-22)
+M_MAX = 10       # most tasks reported in one month (the monthly page has rows 12-22)
 Q_ROWS = 6       # task rows printed on a blank quarterly appraisal (19-24)
 Q_MAX = 10       # most tasks one quarterly appraisal will take; extra rows are inserted above the totals row
 
@@ -393,7 +393,7 @@ def fill(data, out_path, signature=None, supervisor_signature=None, cso_signatur
         'C14': ippis_val(cso.get('ippis')), 'E14': cso.get('email'), 'G14': phone_val(cso.get('phone')),
     }
     periods = [('01/01', '31/03'), ('01/04', '30/06'), ('01/07', '30/09'), ('01/10', '31/12')]
-    reset = {month_sheets[mi]: (12, 13, 14, 15, 16, 17, 24, 27, 30, 34, 37, 39, 40) for mi in range(12)}
+    reset = {month_sheets[mi]: tuple(range(12, 12 + max(6, len(month_rows[mi])))) + (24, 27, 30, 34, 37, 39, 40) for mi in range(12)}
     qoff = {}
     for qi, name in enumerate(q_sheets):
         ws = wb[name]

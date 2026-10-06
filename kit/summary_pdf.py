@@ -166,7 +166,7 @@ def summary(data, out_path, compact=0):
     issues = Counter()
     issue_months = {}
     for mi, m in enumerate(monthly):
-        for r in (m.get('rows') or [])[:6]:
+        for r in (m.get('rows') or [])[:10]:
             text = (r.get('kra') or '').strip()
             if not text:
                 continue
@@ -210,7 +210,7 @@ def summary(data, out_path, compact=0):
     months_filled = len({e[0] for e in filled})
     met = sum(1 for e in filled if e[4])
     blanks = [f"{MONTHS[mi]} task {ri + 1}" for mi, m in enumerate(monthly)
-              for ri, r in enumerate((m.get('rows') or [])[:6]) if (r.get('kra') or '').strip() and num_val(r.get('output')) is None]
+              for ri, r in enumerate((m.get('rows') or [])[:10]) if (r.get('kra') or '').strip() and num_val(r.get('output')) is None]
     ppl = Table([[Paragraph("<font color='#6B7667' size='6.8'>APPRAISEE</font>", S_CELL),
                   Paragraph("<font color='#6B7667' size='6.8'>SUPERVISOR (APPRAISER)</font>", S_CELL),
                   Paragraph("<font color='#6B7667' size='6.8'>COUNTER-SIGNING OFFICER</font>", S_CELL)],
@@ -229,7 +229,8 @@ def summary(data, out_path, compact=0):
 
     # grid layout (one column per task) when nurses report more than two tasks a month and have few tasks overall
     per_month = Counter(e[0] for e in entries)
-    grid = bool(per_month) and max(per_month.values()) > 2 and len(order) <= 6
+    dense = bool(per_month) and len(order) <= 10 and sum(per_month.values()) >= 0.8 * 12 * len(order)   # nearly every task every month
+    grid = bool(per_month) and max(per_month.values()) > 2 and (len(order) <= 6 or dense)
     listing = bool(per_month) and max(per_month.values()) > 2 and not grid     # many tasks: one line per month
     label = {key: f"T{i + 1}" for i, key in enumerate(order)}
 
@@ -270,7 +271,8 @@ def summary(data, out_path, compact=0):
     for e in entries:
         by_month[e[0]].append(e)
     if grid:
-        RS = st('gr', 7.2, 8.6, alignment=1)
+        wide = len(order) > 6
+        RS = st('gr', 6.5 if wide else 7.2, 8 if wide else 8.6, alignment=1)
         ABBR = {'Outstanding': 'O', 'Excellent': 'E', 'Very good': 'VG', 'Good': 'G', 'Fair': 'F', 'Poor': 'P'}
         mrows = [[Paragraph("", S_HEAD)] + [Paragraph(label[k], st('gh', 7.2, 9, True, colors.white, alignment=1)) for k in order]]
         for mi in range(12):
@@ -283,6 +285,8 @@ def summary(data, out_path, compact=0):
                 _, _, n, rating, _ = e
                 t = tasks[key][0]
                 val = (t.show(n) if t else esc(n)) if n is not None else "<font color='#B3261E'><b>blank</b></font>"
+                if wide and t is not None and t.frac and isinstance(n, (int, float)) and n <= 1:
+                    val = f"{n * 100:g}%"                     # a fraction shown as a plain percentage in a narrow column
                 rt = f" <font color='{BAND_COLORS[rating].hexval().replace('0x', '#')}'><b>{ABBR[rating]}</b></font>" if rating else ""
                 cells.append(Paragraph(val + rt, RS))
             mrows.append(cells)
