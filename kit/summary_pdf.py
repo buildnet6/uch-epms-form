@@ -234,12 +234,21 @@ def summary(data, out_path, compact=0):
     listing = bool(per_month) and max(per_month.values()) > 2 and not grid     # many tasks: one line per month
     label = {key: f"T{i + 1}" for i, key in enumerate(order)}
 
+    def tname(key, n):
+        """Short task name; where two tasks would read the same, use the part after the colon (e.g. ': PMS', ': ECM')."""
+        text = tasks[key][2]
+        nm = short_task(text, n)
+        if ':' in str(text) and sum(short_task(tasks[k][2], n) == nm for k in order) > 1:
+            head, tail = str(text).split(':', 1)
+            nm = short_task(tail.strip()[:1].upper() + tail.strip()[1:], n)
+        return nm
+
     # ---- tasks
     story.append(Paragraph("Your tasks (Key Result Areas) and contract targets", S_H))
     rows = [[Paragraph(h, S_HEAD) for h in ("Code", "Task", "Target", "Months used")]]
     for key in order:
         t, code, text, used = tasks[key]
-        rows.append([Paragraph((f"<b>{label[key]}</b> · " if (grid or listing) else "") + esc(code), S_CELLB), Paragraph(esc(short_task(text, 72 if listing else 95)), S_CELL),
+        rows.append([Paragraph((f"<b>{label[key]}</b> · " if (grid or listing) else "") + esc(code), S_CELLB), Paragraph(esc(tname(key, 72 if listing else 95)), S_CELL),
                      Paragraph(esc(t.target_text()) if t else '—', S_CELL), Paragraph('All 12 months' if len(set(used)) == 12 else (f"{len(set(used))} months" if listing else ', '.join(dict.fromkeys(used))), S_CELL)])
     tstyle = TableStyle([('BACKGROUND', (0, 0), (-1, 0), GREEN), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                          ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F5F7F2')]),
@@ -254,7 +263,7 @@ def summary(data, out_path, compact=0):
             for key in keys:
                 t, code, text, used = tasks[key]
                 tgt = (t.target_text() if t else '—').split(' (')[0]
-                rr.append([Paragraph(f"<b>{label[key]}</b> " + esc(code), SC), Paragraph(esc(short_task(text, 40)), SC), Paragraph(esc(tgt), SC)])
+                rr.append([Paragraph(f"<b>{label[key]}</b> " + esc(code), SC), Paragraph(esc(tname(key, 40)), SC), Paragraph(esc(tgt), SC)])
             tb = Table(rr, colWidths=[W * 0.13, W * 0.27, W * 0.09]); tb.setStyle(tstyle)
             tb.setStyle(TableStyle([('TOPPADDING', (0, 0), (-1, -1), 0.8), ('BOTTOMPADDING', (0, 0), (-1, -1), 0.8)])); return tb
         tt = Table([[col(order[:half]), col(order[half:])]], colWidths=[W * 0.5, W * 0.5])

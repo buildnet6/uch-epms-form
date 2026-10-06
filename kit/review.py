@@ -49,7 +49,12 @@ PLAIN = [('formulate goals for and direct', 'sectional goals and operations'),
          ('typing and dispatch of official', 'official correspondence'), ("typing of students' transcripts", 'transcripts and reference requests'),
          ('typing and confidential custody', 'examination questions'), ('organising departmental meetings', 'departmental meetings and minutes'),
          ('receipt, registration and routing', 'mail and records'), ('preparation of staff salary log', 'the salary log and imprest records'),
-         ('attending to visitors', 'visitors, enquiries and calls')]
+         ('attending to visitors', 'visitors, enquiries and calls'),
+         ('focus on occupational health nursing education: academic', 'academic records and correspondence'),
+         ('managing hospital facilities', 'coordination of school meetings'), ('human resource management system', 'personnel records and the salary log'),
+         ('financial accountability, regulatory', 'imprest records'), ('information and public relations', 'visitors, enquiries and calls'),
+         ('improve governance for effective service delivery: pms', 'the PMS cascade'), ('improve governance for effective service delivery: ecm', 'ECM compliance'),
+         ('materials allocation', 'stationery and office inventory'), ('staff welfare', 'promotion papers for eligible staff')]
 
 
 def short(text, n=48):

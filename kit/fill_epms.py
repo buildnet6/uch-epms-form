@@ -156,9 +156,60 @@ def full(p, order='surname_first'):
 CUSTOM_ROW0 = 1000   # a nurse's own tasks (not on the department list) are staged here, then removed before saving
 
 
+def _band(b):
+    try:
+        return float(b) if b is not None and str(b).replace('.', '', 1).isdigit() else b
+    except ValueError:
+        return b
+
+
+def apply_own_contract(ws, data):
+    """Replace the hospital-wide task list (rows 19-99) with the person's own contract when one is supplied
+    (data['own_contract'], e.g. the department's individual contract for clerical staff). Unused rows are hidden."""
+    rows = data.get('own_contract') or []
+    if not rows or ws.cell(17, 1).value != 'S/N':
+        return 0
+    for m in [str(m) for m in ws.merged_cells.ranges if 19 <= m.min_row <= 99]:
+        ws.unmerge_cells(m)
+    for r in range(19, 100):
+        for c in range(1, 27):
+            ws.cell(r, c).value = None
+    r = 19
+    groups = []
+    for i, row in enumerate(rows[:81]):
+        r = 19 + i
+        if row.get('code'):
+            groups.append([r, r])
+        elif groups:
+            groups[-1][1] = r
+        vals = {1: row.get('code') or None, 2: row.get('kra'), 6: row.get('weight_group') if row.get('code') else None,
+                7: row.get('objective'), 11: row.get('weight'), 12: f'=K{r}/$K$100*70', 13: row.get('target'),
+                14: row.get('kpi'), 19: row.get('unit')}
+        for col, v in vals.items():
+            ws.cell(r, col).value = v
+        for j, b in enumerate((list(row.get('bands') or []) + [None] * 6)[:6]):
+            ws.cell(r, 21 + j).value = _band(b)
+        for c in range(1, 27):
+            cell = ws.cell(r, c)
+            cell.alignment = Alignment(wrap_text=True, vertical='center', horizontal='center')
+            if r > 19:
+                cell.font = copy(ws.cell(19, c).font)        # one font per column, as on the first row
+        for a, b in ((2, 5), (7, 10), (14, 18), (19, 20)):
+            ws.merge_cells(start_row=r, start_column=a, end_row=r, end_column=b)
+    for a, b in groups:
+        if b > a:
+            for col in (1, 6):
+                ws.merge_cells(start_row=a, start_column=col, end_row=b, end_column=col)
+    for rr in range(r + 1, 100):
+        ws.row_dimensions[rr].hidden = True
+    return len(rows)
+
+
 def add_custom_tasks(pms, data):
     """Write tasks that carry their own target/scale ("custom") into scratch rows of the contract sheet,
-    so every lookup, the quarterly pages and the summary treat them like department tasks. Returns how many."""
+    so every lookup, the quarterly pages and the summary treat them like department tasks. Returns how many.
+    A person's own contract (data['own_contract']) is put in place first."""
+    apply_own_contract(pms, data)
     n = 0
     for k in data.get('kras') or []:
         c = k.get('custom') if isinstance(k, dict) else None
@@ -295,6 +346,8 @@ def fill(data, out_path, signature=None, supervisor_signature=None, cso_signatur
     wb = openpyxl.load_workbook(TEMPLATE)
     pms = wb[CONTRACT]
     n_custom = add_custom_tasks(pms, data)
+    if 'PMS CONTRACT-OTHERS (CLOSED)' in wb.sheetnames:
+        apply_own_contract(wb['PMS CONTRACT-OTHERS (CLOSED)'], data)
     contract = Contract(pms)
     notes = []
 
@@ -490,9 +543,11 @@ def fill(data, out_path, signature=None, supervisor_signature=None, cso_signatur
         pms.delete_rows(CUSTOM_ROW0, 60)                   # scratch rows are not part of the workbook
         for r in [r for r in pms.row_dimensions if r >= CUSTOM_ROW0 - 5]:
             del pms.row_dimensions[r]
-    own_c = ((data.get('contract') or {}).get('appraisee_comment') or '').strip()
-    if own_c:
-        pms['C120'] = own_c
+    cc = data.get('contract') or {}
+    for a, k in (('C120', 'appraisee_comment'), ('I120', 'supervisor_comment'), ('P120', 'cso_comment')):
+        v = (cc.get(k) or '').strip()
+        if v:
+            pms[a] = v
     order_sheets(wb)
     stage = out_path + '.stage.xlsx'
     wb.save(stage)
