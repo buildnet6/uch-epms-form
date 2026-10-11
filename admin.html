@@ -33,7 +33,7 @@
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.45;padding:0 16px 60px}
-.wrap{max-width:1180px;margin:0 auto}
+.wrap{max-width:960px;margin:0 auto}
 [hidden]{display:none!important}
 h1{font-family:var(--serif);font-size:clamp(24px,4vw,30px);margin:0;line-height:1.15}
 h2{font-family:var(--serif);font-size:20px;margin:0}
@@ -162,7 +162,7 @@ textarea{min-height:70px;resize:vertical}
 .ai-msg{border-radius:12px;padding:10px 12px;max-width:94%;white-space:pre-wrap;word-wrap:break-word;font-size:14.5px}
 .ai-msg.you{align-self:flex-end;background:var(--green);color:var(--green-ink)}
 .ai-msg.bot{align-self:flex-start;background:var(--surface);border:1px solid var(--line)}
-.ai-step{align-self:flex-start;font-size:13px;color:var(--ink-2);background:var(--surface-2);border-radius:8px;padding:4px 10px}
+.ai-step{align-self:flex-start;font-size:13px;color:var(--ink-2);background:var(--surface-2);border-radius:8px;padding:4px 10px;white-space:pre-wrap}
 .ai-step.bad{color:var(--danger);background:var(--danger-soft)}
 .ai-files{align-self:flex-start;background:var(--green-soft);border-radius:10px;padding:10px 12px}
 .ai-att{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
@@ -174,6 +174,65 @@ textarea{min-height:70px;resize:vertical}
 .ai-cfg{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px}
 .ai-cfg select{width:auto}
 .ai-mic.on{background:var(--danger);border-color:var(--danger);color:#fff}
+/* calmer layout: one column, folded sections, one menu */
+.top{padding:18px 0 10px}
+.top h1{font-size:clamp(22px,3.4vw,26px)}
+.menu{position:relative}
+.menu>summary{list-style:none;cursor:pointer}
+.menu>summary::-webkit-details-marker{display:none}
+.menu-pop{position:absolute;right:0;top:calc(100% + 6px);background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.15);padding:8px;width:min(300px,calc(100vw - 32px));z-index:15;display:grid;gap:2px}
+.mi{font:inherit;font-size:14px;text-align:left;background:none;border:0;border-radius:8px;padding:9px 10px;color:var(--ink);cursor:pointer;text-decoration:none;display:flex;gap:8px;align-items:center}
+.mi:hover{background:var(--surface-2)}
+.menu-pop hr{border:0;border-top:1px solid var(--line);margin:4px 0}
+.menu-pop .check{padding:6px 10px}
+.menu-pop .wa-mode{display:grid;padding:6px 10px;font-size:13px}
+.stats{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 16px}
+.stat{font:inherit;display:flex;align-items:baseline;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:99px;padding:6px 14px;cursor:pointer;color:var(--ink)}
+.stat b{font-size:17px;font-variant-numeric:tabular-nums}
+.stat span{font-size:13px;color:var(--ink-2)}
+.stat.alert{border-color:var(--danger);background:var(--danger-soft)} .stat.alert b,.stat.alert span{color:var(--danger)}
+.stat.todo{border-color:var(--amber);background:var(--amber-soft)} .stat.todo b,.stat.todo span{color:var(--amber-ink)}
+.stat[aria-pressed="true"]{outline:2px solid var(--green);outline-offset:1px}
+details.fold{border-top:1px solid var(--line)}
+details.fold:first-child{border-top:0}
+details.fold>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;padding:11px 2px;font-weight:700}
+details.fold>summary::-webkit-details-marker{display:none}
+details.fold>summary::before{content:"";width:7px;height:7px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(-45deg);transition:transform .15s;flex:none;margin:0 3px}
+details.fold[open]>summary::before{transform:rotate(45deg)}
+details.fold>summary .count{margin-left:auto}
+details.fold>.body{padding:0 2px 12px 22px}
+.pip{width:9px;height:9px;border-radius:50%;flex:none;background:var(--muted)}
+.pip.red{background:var(--danger)} .pip.amber{background:var(--amber)} .pip.blue{background:var(--focus)} .pip.grey{background:var(--line)}
+.listbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:6px}
+.listbar input{flex:1;min-width:180px}
+.listbar select{width:auto}
+.more{display:block;margin:10px auto 0}
+.drawer details.sec{padding:0}
+.drawer details.sec>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;padding:13px 14px}
+.drawer details.sec>summary::-webkit-details-marker{display:none}
+.drawer details.sec>summary::before{content:"";width:7px;height:7px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(-45deg);transition:transform .15s;flex:none}
+.drawer details.sec[open]>summary::before{transform:rotate(45deg)}
+.drawer details.sec>summary .meta{margin-left:auto;font-size:12.5px;color:var(--muted);font-weight:500;text-align:right}
+.drawer details.sec>.body{padding:0 14px 14px}
+.quick{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+.danger-zone{border:1px solid var(--danger);border-radius:10px;padding:10px 12px;margin-top:12px;background:var(--danger-soft)}
+.danger-zone h4{margin:0 0 4px;color:var(--danger);font-size:14px}
+/* assistant plan + history */
+.ai-plan{align-self:stretch;background:var(--surface);border:1.5px solid var(--green);border-radius:12px;padding:12px 14px;font-size:14.5px}
+.ai-plan h4{margin:10px 0 4px;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--green)}
+.ai-plan h4:first-child{margin-top:0}
+.ai-plan ol,.ai-plan ul{margin:0;padding-left:20px}
+.ai-plan .ask{margin-top:10px;font-weight:700}
+.ai-plan.done{border-color:var(--line);opacity:.85}
+.ai-earlier{align-self:center;font-size:12px;color:var(--muted);border-top:1px solid var(--line);width:100%;text-align:center;padding-top:6px}
+.hist-conv{border-left:3px solid var(--line);padding-left:10px;margin:10px 0}
+.hist-conv>summary{cursor:pointer;font-weight:700;font-size:14px}
+.hist-e{font-size:13.5px;padding:5px 0;border-top:1px dashed var(--line);white-space:pre-wrap;word-wrap:break-word}
+.hist-e:first-of-type{border-top:0}
+.hist-e .who{font-size:11.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);display:block}
+.hist-e.admin .who{color:var(--green)}
+.hist-e.plan .who{color:var(--blue-ink)}
+.hist-e.plan{white-space:normal}
 .help{font-size:13.5px;color:var(--ink-2);background:var(--surface-2);border-radius:10px;padding:10px 12px;margin-top:10px}
 </style>
 </head>
@@ -195,42 +254,48 @@ textarea{min-height:70px;resize:vertical}
   <!-- dashboard -->
   <main id="app" hidden>
     <div class="top">
-      <div><div class="eyebrow">UCH Nurses EPMS 2025 · Admin</div><h1>What's happening</h1></div>
+      <div><div class="eyebrow">UCH EPMS 2025 · Admin</div><h1>Dashboard</h1>
+        <span class="updated"><span class="dot" id="live_dot"></span><span id="updated">Loading…</span></span></div>
       <div class="right">
-        <span class="updated"><span class="dot" id="live_dot"></span><span id="updated">Loading…</span></span>
-        <button class="btn small" id="refresh">Refresh</button>
-        <a class="btn small" href="https://claude.ai/artifact/GhV57KM5Q6MdfTxo8V79np" target="_blank" rel="noopener">Workbooks (as submitted)</a>
-        <button class="btn small" id="csv">Download list (CSV)</button>
         <button class="btn small primary" id="ai_btn" title="Type or dictate changes; attach signatures and sample forms">✦ Assistant</button>
-        <button class="btn small primary" id="add_btn">+ Add a nurse</button>
-        <label class="small wa-mode" title="Which WhatsApp the message buttons open">WhatsApp from BuildNET via
-          <select id="wa_mode"><option value="business">WhatsApp Business app</option><option value="web">WhatsApp Web (computer)</option><option value="app">Regular WhatsApp app</option></select></label>
-        <button class="btn small ghost" id="settings_btn">Passcode</button>
-        <button class="btn small ghost" id="signout">Sign out</button>
+        <button class="btn small" id="add_btn">+ Add</button>
+        <details class="menu" id="menu"><summary class="btn small ghost" aria-label="More">⋯ More</summary>
+          <div class="menu-pop">
+            <button class="mi" id="refresh">↻ Refresh now</button>
+            <button class="mi" id="csv">⤓ Download list (CSV)</button>
+            <a class="mi" href="https://claude.ai/artifact/GhV57KM5Q6MdfTxo8V79np" target="_blank" rel="noopener">▤ Workbooks (as submitted)</a>
+            <hr>
+            <label class="check small"><input type="checkbox" id="show_tests"> Show test profiles</label>
+            <label class="check small"><input type="checkbox" id="show_arch"> Show archived</label>
+            <label class="small wa-mode" title="Which WhatsApp the message buttons open">WhatsApp buttons open
+              <select id="wa_mode"><option value="business">WhatsApp Business app</option><option value="web">WhatsApp Web (computer)</option><option value="app">Regular WhatsApp app</option></select></label>
+            <hr>
+            <button class="mi" id="settings_btn">⚿ Change passcode</button>
+            <button class="mi" id="signout">⎋ Sign out</button>
+          </div></details>
       </div>
     </div>
 
-    <div class="tiles" id="tiles"></div>
+    <div class="stats" id="tiles"></div>
 
-    <div class="grid2">
-      <div>
-        <section class="panel" id="attention_panel">
-          <div class="panel-head"><h2>Needs your attention</h2><span class="acts"><label class="check small"><input type="checkbox" id="show_tests"> Include test profiles</label><label class="check small"><input type="checkbox" id="show_arch"> Include archived</label></span></div>
-          <div id="attention"></div>
-        </section>
+    <section class="panel" id="attention_panel">
+      <div class="panel-head" style="margin-bottom:2px"><h2>Needs you</h2></div>
+      <div id="attention"></div>
+    </section>
 
-        <section class="panel">
-          <div class="panel-head"><h2>All nurses</h2><input id="search" type="search" placeholder="Search name, IPPIS, phone, unit…" style="max-width:280px"></div>
-          <div class="filters" id="filters"></div>
-          <div class="rows" id="rows"></div>
-        </section>
+    <section class="panel">
+      <div class="panel-head"><h2>Everyone</h2><span class="small muted" id="list_count"></span></div>
+      <div class="listbar">
+        <input id="search" type="search" placeholder="Search name, IPPIS, phone, unit…">
+        <select id="filter_sel" aria-label="Show"></select>
       </div>
+      <div class="rows" id="rows"></div>
+    </section>
 
-      <aside class="panel">
-        <div class="panel-head"><h2>Activity</h2><span class="small muted" id="feed_count"></span></div>
-        <div class="feed" id="feed"></div>
-      </aside>
-    </div>
+    <section class="panel">
+      <details class="fold" id="feed_fold"><summary>Recent activity <span class="count" id="feed_count"></span></summary>
+        <div class="body"><div class="feed" id="feed"></div></div></details>
+    </section>
   </main>
 </div>
 
@@ -289,10 +354,10 @@ textarea{min-height:70px;resize:vertical}
 <div class="scrim" id="ai_scrim" hidden></div>
 <aside class="drawer" id="ai" hidden role="dialog" aria-modal="true" aria-labelledby="ai_h">
   <div class="panel-head"><div><div class="eyebrow">Admin assistant</div><h2 id="ai_h">Tell me what to change</h2><div class="small muted" id="ai_focus"></div></div>
-    <div class="acts"><button class="btn small ghost" id="ai_new">New conversation</button><button class="btn small ghost" id="ai_close">Close</button></div></div>
+    <div class="acts"><button class="btn small ghost" id="ai_new">New</button><button class="btn small ghost" id="ai_close">Close</button></div></div>
   <div id="ai_setup"></div>
-  <div class="ai-cfg"><label>Engine <select id="ai_model"><option value="claude-opus-5-5">Opus 5.5 (best)</option><option value="claude-sonnet-5">Sonnet 5 (faster, cheaper)</option></select></label>
-    <span class="muted">Changes save to the record and the build starts by itself.</span></div>
+  <div class="ai-cfg"><select id="ai_hist" aria-label="Earlier conversations" style="max-width:240px"><option value="">Earlier conversations…</option></select><label>Engine <select id="ai_model"><option value="claude-opus-5-5">Opus 5.5 (best)</option><option value="claude-sonnet-5">Sonnet 5 (faster, cheaper)</option></select></label>
+    <span class="muted" id="ai_ready"></span></div>
   <div class="ai-log" id="ai_log"></div>
   <div class="ai-att" id="ai_att"></div>
   <div class="ai-bar">
@@ -304,7 +369,6 @@ textarea{min-height:70px;resize:vertical}
     </div>
   </div>
   <input type="file" id="ai_file" multiple hidden accept="image/*,.pdf,.xlsx,.xls,.csv,.txt,.json,.docx">
-  <p class="small muted" style="margin:6px 0 0">Signatures: attach the photo, pick whose it is, and check the cleaned preview. Excel, Word, PDF and photos of forms are read too.</p>
 </aside>
 
 <div class="toast" id="toast" hidden role="status" aria-live="polite"></div>
@@ -369,7 +433,7 @@ async function refresh(silent){
 }
 function startTimer(){ clearInterval(timer); timer=setInterval(()=>{ if(document.visibilityState==="visible") refresh(true); }, 60000); }
 document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="visible" && KEY) refresh(true); });
-$("refresh").onclick = ()=>refresh(false);
+$("refresh").onclick = ()=>{ $("menu").open=false; refresh(false); };
 
 // ---------- understanding each nurse ----------
 const T = s => s ? new Date(s).getTime() : 0;
@@ -465,14 +529,14 @@ function render(){
   const overdue = S.filter(x=>x.s.overdue);
   const payfail = S.filter(x=>x.s.key==="payfail");
   const tiles = [
-    ["all", rows.length, "Nurses who started", ""],
-    ["filling", S.filter(x=>x.s.key==="filling"||x.s.key==="payfail").length, "Not paid yet", ""],
-    ["paid", paid.length, "Paid · " + naira(revenue), ""],
-    ["todo", todo.length, "Workbooks to generate or send", todo.length?"todo":""],
-    ["overdue", overdue.length, `Past ${SLA_HOURS}-hour promise`, overdue.length?"alert":""],
-    ["done", S.filter(x=>x.s.key==="done").length, "Sent", ""],
-  ];
-  $("tiles").innerHTML = tiles.map(([k,n,l,c])=>`<button class="tile ${c}" data-filter="${k}"><b>${n}</b><span>${esc(l)}</span></button>`).join("");
+    ["all", rows.length, "people", ""],
+    ["filling", S.filter(x=>x.s.key==="filling"||x.s.key==="payfail").length, "not paid", ""],
+    ["paid", paid.length, "paid · " + naira(revenue), ""],
+    ["todo", todo.length, "to build or send", todo.length?"todo":""],
+    ["overdue", overdue.length, "overdue", "alert"],
+    ["done", S.filter(x=>x.s.key==="done").length, "sent", ""],
+  ].filter(t=>t[0]!=="overdue" || t[1]>0);
+  $("tiles").innerHTML = tiles.map(([k,n,l,c])=>`<button class="stat ${c}" data-filter="${k}" aria-pressed="${filter===k&&k!=="all"}"><b>${n}</b><span>${esc(l)}</span></button>`).join("");
 
   // attention buckets
   const now = T(DATA.now);
@@ -486,14 +550,17 @@ function render(){
     ["red", "Tried to pay, not confirmed", "Opened the checkout but no successful payment was found. Tap “Check payment” or message her.", payfail],
     ["grey", "Started but quiet for over a day", "Started the form, not paid, no activity for 24+ hours. A friendly nudge often helps.", stale],
   ].filter(b=>b[3].length);
-  $("attention").innerHTML = buckets.length ? buckets.map(([cls,title,why,list])=>`
-    <div class="bucket ${cls}"><h3>${esc(title)} <span class="count">${list.length}</span></h3><p class="why">${esc(why)}</p>
-    ${list.sort((a,b)=>T(a.r.paid_at||a.r.created_at)-T(b.r.paid_at||b.r.created_at)).map(x=>personLine(x)).join("")}</div>`).join("")
+  // each group folds away; red groups open by default, and what you opened stays open across refreshes
+  $("attention").innerHTML = buckets.length ? buckets.map(([cls,title,why,list])=>{
+    const open = FOLD[title] ?? (cls==="red");
+    return `<details class="fold" data-fold="${esc(title)}" ${open?"open":""}><summary><span class="pip ${cls}"></span>${esc(title)}<span class="count">${list.length}</span></summary>
+    <div class="body"><p class="why small muted" style="margin:0 0 4px">${esc(why)}</p>
+    ${list.sort((a,b)=>T(a.r.paid_at||a.r.created_at)-T(b.r.paid_at||b.r.created_at)).map(x=>personLine(x)).join("")}</div></details>`; }).join("")
     : `<div class="allclear">✓ Nothing needs you right now.</div>`;
 
   // filters + list
   const F = [["all","All"],["unfinished","Paid, unfinished"],["filling","Not paid"],["payfail","Payment issue"],["todo","To generate / send"],["overdue","Overdue"],["paid","Paid"],["done","Sent"],["comp","Complimentary"]];
-  $("filters").innerHTML = F.map(([k,l])=>`<button class="chip" data-filter="${k}" aria-pressed="${filter===k}">${l}</button>`).join("");
+  $("filter_sel").innerHTML = F.map(([k,l])=>`<option value="${k}" ${filter===k?"selected":""}>${l}</option>`).join("");
   const q = $("search").value.trim().toLowerCase();
   const pass = x => {
     const r=x.r, k=x.s.key;
@@ -509,23 +576,31 @@ function render(){
     return true;
   };
   const list = S.filter(pass).sort((a,b)=> a.s.rank-b.s.rank || T(b.r.data_updated_at||b.r.created_at)-T(a.r.data_updated_at||a.r.created_at));
-  $("rows").innerHTML = `<div class="row head"><div>Nurse</div><div>Status</div><div>Progress</div><div>Last activity</div></div>` +
-    (list.length ? list.map(({r,s,p})=>`<div class="row" data-id="${r.id}" tabindex="0">
+  $("list_count").textContent = `${list.length} shown`;
+  const page = list.slice(0, SHOW);
+  $("rows").innerHTML = `<div class="row head"><div>Name</div><div>Status</div><div>Progress</div><div>Last activity</div></div>` +
+    (list.length ? page.map(({r,s,p})=>`<div class="row" data-id="${r.id}" tabindex="0">
       <div><b>${esc(full(r))}</b>${r.is_test?' <span class="badge b-grey">test</span>':''}${r.complimentary?' <span class="badge b-blue">free</span>':''}${r.source==="admin"?' <span class="badge b-grey">added by you</span>':''}${r.archived?' <span class="badge b-grey">archived</span>':''}${r.autofill&&r.autofill.at?' <span class="badge b-blue">auto-completed</span>':''}${wbBadge(r)}<div class="small muted">${esc([r.designation, r.unit, r.ippis && "IPPIS "+r.ippis].filter(Boolean).join(" · "))}</div></div>
       <div><span class="badge ${s.cls}">${esc(s.label)}</span>${r.payment_status==="paid"?`<div class="small muted">${naira(r.amount_paid)} · ${ago(r.paid_at)}</div>`:""}</div>
       <div class="small">${p.filled}/12 months${p.blanks?` · <span style="color:var(--danger)">${p.blanks} blank</span>`:""}<div class="bar"><i style="width:${Math.round(p.filled/12*100)}%"></i></div></div>
       <div class="small muted">${ago(r.data_updated_at||r.created_at)}</div></div>`).join("")
-    : `<p class="muted" style="padding:12px 6px">No nurse matches this view.</p>`);
+    : `<p class="muted" style="padding:12px 6px">No one matches this view.</p>`) +
+    (list.length > SHOW ? `<button class="btn small more" id="show_more">Show ${Math.min(30, list.length-SHOW)} more of ${list.length-SHOW}</button>` : "");
+  const sm = $("show_more"); if(sm) sm.onclick = ()=>{ SHOW += 30; render(); };
 
   // activity
   const names = Object.fromEntries((DATA.rows||[]).map(r=>[r.id, r]));
   const ICON = {created:"🆕", edited:"✏️", pay_started:"💳", paid:"✅", filled:"📄", unfilled:"↩️", delivered:"📨", undelivered:"↩️", admin:"⭐", note:"📝"};
   const evs = (DATA.events||[]).filter(e=>{ const n=e.submission_id&&names[e.submission_id]; return !n || (($("show_tests").checked || !n.is_test) && ($("show_arch").checked || !n.archived)); });
-  $("feed_count").textContent = evs.length ? `last ${evs.length}` : "";
+  $("feed_count").textContent = evs.length || "";
   $("feed").innerHTML = evs.length ? evs.map(e=>`<div class="ev"><span class="ic" aria-hidden="true">${ICON[e.kind]||"•"}</span>
       <div><span class="${e.submission_id&&names[e.submission_id]?"lnk":""}" data-id="${e.submission_id||""}">${esc(e.detail)}</span><time datetime="${esc(e.at)}">${when(e.at)} · ${ago(e.at)}</time></div></div>`).join("")
     : `<p class="muted">No activity yet.</p>`;
 }
+let SHOW = 30;            // list length before "Show more"
+const FOLD = {};          // which groups you opened or closed
+document.addEventListener("toggle", e=>{ const d=e.target; if(d.dataset && d.dataset.fold) FOLD[d.dataset.fold]=d.open; if(d.dataset && d.dataset.sec){ SECOPEN[d.dataset.sec]=d.open; if(d.dataset.sec==="history" && d.open && openId) paintHistory(openId); } }, true);
+document.addEventListener("click", e=>{ const m=$("menu"); if(m && m.open && !m.contains(e.target)) m.open=false; });
 function personLine({r,s,p}){
   const hrs = (s.hoursSincePaid!=null && r.payment_status==="paid") ? (s.overdue ? `paid ${Math.floor(s.hoursSincePaid)} h ago` : `${Math.max(0, Math.ceil(SLA_HOURS - s.hoursSincePaid))} h left of ${SLA_HOURS}`) : "";
   const wa = waLink(r, s.key==="payfail"?"payfail":s.key==="filling"?"filling":s.key==="unfinished"?"unfinished":"general");
@@ -533,7 +608,6 @@ function personLine({r,s,p}){
   if(s.key==="send"||s.key==="resend") act.push(`<button class="btn small primary" data-act="delivered" data-id="${r.id}">Mark sent</button>`);
   if(s.key==="payfail") act.push(`<button class="btn small" data-act="recheck" data-id="${r.id}">Check payment</button>`);
   if(wa) act.push(`<a class="btn small" href="${wa}" target="${waTarget()}" rel="noopener" title="${esc(waHelp())}">WhatsApp</a>`);
-  act.push(`<button class="btn small ghost" data-open="${r.id}">Details</button>`);
   return `<div class="person"><div class="who" data-open="${r.id}"><b>${esc(full(r))}</b><span class="small muted">${esc([r.unit, r.phone, hrs, p.filled+"/12 months", p.blanks?p.blanks+" blank result(s)":""].filter(Boolean).join(" · "))}</span></div><div class="acts">${act.join("")}</div></div>`;
 }
 
@@ -566,34 +640,42 @@ async function openDetail(id, quiet){
     ? `<b style="color:var(--ok)">Paid ${naira(r.amount_paid)}</b> · ${when(r.paid_at)}<br><span class="small muted">${r.payment_method==="manual"?`Confirmed by you${r.payment_note?": "+esc(r.payment_note):""}`:"Verified with Flutterwave"}</span>`
     : r.complimentary ? "Complimentary (no payment needed)" : `<b style="color:var(--danger)">Not paid</b>`;
   const found = CHECK[r.id];
+  const fixes = L.filter(x=>!x.includes('class="ok"')).length;
+  const sec = (key, title, meta, defOpen, body) => `<details class="sec" data-sec="${key}" ${(SECOPEN[key] ?? defOpen) ? "open" : ""}><summary><h3>${title}</h3><span class="meta">${meta}</span></summary><div class="body">${body}</div></details>`;
   d.innerHTML = `
-    <div class="panel-head"><div><div class="eyebrow">Nurse profile</div><h2 id="d_name">${esc(full(r))}</h2><div class="small muted">${esc([r.designation, r.unit, r.ippis && "IPPIS "+r.ippis].filter(Boolean).join(" · "))}</div></div><button class="btn small ghost" id="d_close">Close</button></div>
+    <div class="panel-head"><div><div class="eyebrow">Profile</div><h2 id="d_name">${esc(full(r))}</h2><div class="small muted">${esc([r.designation, r.unit, r.ippis && "IPPIS "+r.ippis].filter(Boolean).join(" · "))}</div></div><button class="btn small ghost" id="d_close">Close</button></div>
     <span class="badge ${s.cls}">${esc(s.label)}</span> ${r.is_test?'<span class="badge b-grey">test profile</span>':''} ${r.complimentary?'<span class="badge b-blue">complimentary</span>':''} ${r.source==="admin"?'<span class="badge b-grey">added by you</span>':''} ${r.archived?'<span class="badge b-grey">archived</span>':''}
+    <div class="quick">
+      <button class="btn small primary" data-ai="${r.id}">✦ Assistant</button>
+      ${waNumber(r.phone)?`<a class="btn small" href="${waLink(r, s.key==="payfail"?"payfail":s.key==="done"?"done":s.key==="filling"?"filling":s.key==="unfinished"?"unfinished":"general")}" target="${waTarget()}" rel="noopener" title="${esc(waHelp())}">WhatsApp${s.key==="unfinished"?" what's missing":""}</a>`:""}
+      ${r.phone?`<a class="btn small ghost" href="tel:${esc(r.phone)}">Call</a>`:""}
+      <a class="btn small ghost" href="${adminLink(r)}" target="_blank" rel="noopener">Edit form</a>
+    </div>
     <div id="d_twins"></div>
 
-    <div class="sec"><h3>Her workbook</h3><div id="d_wb"><p class="muted small">Checking for her workbook…</p></div>
-      <div class="acts" style="margin-top:8px"><button class="btn small primary" data-ai="${r.id}">✦ Ask the assistant about her</button></div></div>
+    ${sec("files", "Her files", BUILD[r.id]?.built_at ? "ready" : (r.payment_status==="paid"||r.complimentary) ? "" : "after payment", true,
+      `<div id="d_wb"><p class="muted small">Checking for her workbook…</p></div>`)}
 
-    <div class="sec"><h3>Where she is</h3>
-      <div class="months" style="margin:8px 0">${months}</div>
+    ${sec("progress", "Progress", `${p.filled}/12 months${fixes?` · ${fixes} to check`:" · complete"}`, !p.complete,
+      `<div class="months" style="margin:4px 0 8px">${months}</div>
       <ul class="miss">${L.join("")}</ul>
       <div class="found" style="margin-top:10px">${autoLine(r)}
         <div class="acts" style="margin-top:8px"><button class="btn small ${p.complete?"":"primary"}" data-act="autofill" data-id="${r.id}">${p.complete?"Check again for empty parts":"Fill the empty parts from her tasks"}</button></div>
-        <p class="small muted" style="margin:6px 0 0">Uses the tasks she chose and each task's target in the master. Only empty months, results, issues and “about your year” answers are filled; nothing she typed is changed. It runs by itself once, as soon as she pays or you make her complimentary.</p>
-      </div>
-    </div>
+        <p class="small muted" style="margin:6px 0 0">Fills only empty months, results, issues and year answers from the tasks she chose. Nothing she typed changes.</p>
+      </div>`)}
 
-    <div class="sec"><h3>Payment</h3>
-      <dl class="kv" style="margin-top:8px">
+    ${sec("payment", "Payment", r.payment_status==="paid" ? `paid ${naira(r.amount_paid)}` : r.complimentary ? "complimentary" : `<span style="color:var(--danger)">not paid</span>`, false,
+      `<dl class="kv">
         <dt>Status</dt><dd>${pay}</dd>
         <dt>Checkout opened</dt><dd>${(r.tx_refs||[]).length || (r.last_tx_ref?1:0)} time(s)${r.last_checked_at?` · last checked ${ago(r.last_checked_at)}`:""}</dd>
         <dt>Her reference</dt><dd class="small">${esc(r.tx_ref||"—")}</dd>
       </dl>
       <div id="d_found">${found?renderFound(found):""}</div>
       <div class="acts" style="margin-top:8px">
-        ${r.payment_status!=="paid" ? `<button class="btn small primary" data-act="recheck" data-id="${r.id}">Check with Flutterwave now</button>` : ""}
-        ${r.payment_status!=="paid" && !r.complimentary ? `<button class="btn small" id="d_manual_btn">I've seen the money: confirm manually</button>` : ""}
+        ${r.payment_status!=="paid" ? `<button class="btn small primary" data-act="recheck" data-id="${r.id}">Check with Flutterwave</button>` : ""}
+        ${r.payment_status!=="paid" && !r.complimentary ? `<button class="btn small" id="d_manual_btn">Confirm manually</button>` : ""}
         ${r.payment_status==="paid" && r.payment_method==="manual" ? `<button class="btn small ghost" data-act="unmark_paid" data-id="${r.id}">Undo manual confirmation</button>` : ""}
+        <button class="btn small ghost" data-act="${r.complimentary?"uncomp":"comp"}" data-id="${r.id}">${r.complimentary?"Remove complimentary":"Make complimentary"}</button>
       </div>
       <div id="d_manual" hidden>
         <div class="pay-form">
@@ -601,66 +683,61 @@ async function openDetail(id, quiet){
           <label for="d_pnote">How you confirmed</label><input id="d_pnote" placeholder="e.g. Bank credit seen 29 Sep, 12:05">
         </div>
         <div class="acts" style="margin-top:8px"><button class="btn small primary" data-act="mark_paid" data-id="${r.id}">Confirm payment</button></div>
-        <p class="small muted" style="margin:6px 0 0">Use this only when you've seen the money yourself (bank alert or Flutterwave dashboard). It's recorded as “confirmed by you” with your note.</p>
-      </div>
-      ${r.payment_status!=="paid" ? `<p class="help">“Check with Flutterwave now” searches every checkout attempt she made and every Flutterwave payment since she started. Bank transfers can take a few minutes to show as successful; if she has just paid, check again shortly.</p>` : ""}
-    </div>
+        <p class="small muted" style="margin:6px 0 0">Only when you've seen the money yourself. It's recorded as “confirmed by you” with your note.</p>
+      </div>`)}
 
-    <div class="sec"><h3>What to do</h3>
-      <div class="acts" style="margin-top:8px">
-        ${waNumber(r.phone)?`<a class="btn small primary" href="${waLink(r, s.key==="payfail"?"payfail":s.key==="done"?"done":s.key==="filling"?"filling":s.key==="unfinished"?"unfinished":"general")}" target="${waTarget()}" rel="noopener" title="${esc(waHelp())}">WhatsApp her${s.key==="unfinished"?" what's missing":""}</a>`:""}
-        ${r.phone?`<a class="btn small ghost" href="tel:${esc(r.phone)}">Call</a>`:""}
-        ${r.email?`<a class="btn small ghost" href="mailto:${esc(r.email)}">Email</a>`:""}
-        <button class="btn small ghost" id="d_json">Download her answers (.json)</button>
-      </div>
-      <div class="acts" style="margin-top:8px">
-        ${r.filled_at ? `<button class="btn small" data-act="unfilled" data-id="${r.id}">Undo “workbook generated”</button>` : `<button class="btn small" data-act="filled" data-id="${r.id}">Mark workbook generated</button>`}
-        ${r.delivered_at ? `<button class="btn small" data-act="undelivered" data-id="${r.id}">Undo “sent”</button>` : `<button class="btn small" data-act="delivered" data-id="${r.id}">Mark sent</button>`}
-        <button class="btn small" data-act="${r.complimentary?"uncomp":"comp"}" data-id="${r.id}">${r.complimentary?"Remove complimentary":"Make complimentary (free)"}</button>
-        <button class="btn small ghost" data-act="${r.is_test?"untest":"test"}" data-id="${r.id}">${r.is_test?"Not a test":"Mark as test"}</button>
-        <button class="btn small ghost" data-act="${r.archived?"unarchive":"archive"}" data-id="${r.id}">${r.archived?"Restore record":"Archive record"}</button>
-      </div>
-      <div class="acts" style="margin-top:8px">
-        <a class="btn small ghost" href="${adminLink(r)}" target="_blank" rel="noopener">Edit her form (admin view)</a>
-        <button class="btn small ghost" data-copy="${esc(editLink(r))}">Copy her private link</button>
-      </div>
-      <p class="help">Everything she has entered is shown below, so you don't need to open her form to check her work. “Edit her form (admin view)” opens only her answers, never anything saved on this device, and any change you make there saves to her record. Send her private link only to her.</p>
-    </div>
+    ${sec("history", "Assistant history", `<span id="d_hist_meta"></span>`, false, `<div id="d_hist"><p class="muted small">Loading…</p></div>`)}
 
-    <div class="sec"><h3>Her answers</h3><div id="d_answers"><p class="muted small">Loading her full answers…</p></div></div>
+    ${sec("answers", "Her answers", `${p.tasks} task(s)`, false, `<div id="d_answers"><p class="muted small">Loading her full answers…</p></div>`)}
 
-    <div class="sec"><h3>People</h3>
-      <dl class="kv" style="margin-top:8px">
-        <dt>Nurse</dt><dd>${esc(r.designation||"")}${r.unit?" · "+esc(r.unit):""}<br><span class="small muted">${esc([r.ippis && "IPPIS "+r.ippis, r.phone, r.email].filter(Boolean).join(" · "))}</span></dd>
+    ${sec("people", "People", esc([r.sup&&r.sup.surname, r.cso&&r.cso.surname].filter(Boolean).join(" · ")), false,
+      `<dl class="kv">
+        <dt>Her</dt><dd>${esc(r.designation||"")}${r.unit?" · "+esc(r.unit):""}<br><span class="small muted">${esc([r.ippis && "IPPIS "+r.ippis, r.phone, r.email].filter(Boolean).join(" · "))}</span></dd>
         ${person(r.sup, "Supervisor")}
         ${person(r.cso, "Counter-signer")}
-      </dl>
-    </div>
+      </dl>`)}
 
-    <div class="sec"><h3>Timeline</h3>
-      <dl class="kv" style="margin-top:8px">
+    ${sec("activity", "Activity", ago(r.data_updated_at||r.created_at), false,
+      `<dl class="kv">
         <dt>Started</dt><dd>${when(r.created_at)}</dd>
-        <dt>Last edit</dt><dd>${when(r.data_updated_at)} · ${ago(r.data_updated_at)}</dd>
+        <dt>Last edit</dt><dd>${when(r.data_updated_at)}</dd>
         <dt>Paid</dt><dd>${when(r.paid_at)}</dd>
         <dt>Workbook made</dt><dd>${when(r.filled_at)}</dd>
         <dt>Sent</dt><dd>${when(r.delivered_at)}</dd>
       </dl>
-    </div>
+      <div class="feed" id="d_feed" style="max-height:none;margin-top:10px"><p class="muted small">Loading…</p></div>`)}
 
-    <div class="sec"><h3>Your note</h3>
-      <textarea id="d_note" placeholder="Anything to remember about her (only you see this)">${esc(r.admin_note||"")}</textarea>
+    ${sec("note", "Your note", r.admin_note ? esc(String(r.admin_note).slice(0,28)) + (String(r.admin_note).length>28?"…":"") : "", false,
+      `<textarea id="d_note" placeholder="Anything to remember about her (only you see this)">${esc(r.admin_note||"")}</textarea>
       <div class="acts" style="margin-top:6px"><button class="btn small" data-act="note" data-id="${r.id}">Save note</button></div>
-      ${r.fill_notes?`<p class="small muted" style="margin:8px 0 0">System note: ${esc(r.fill_notes)}</p>`:""}
-    </div>
+      ${r.fill_notes?`<p class="small muted" style="margin:8px 0 0">System note: ${esc(r.fill_notes)}</p>`:""}`)}
 
-    <div class="sec"><h3>Her activity</h3><div class="feed" id="d_feed" style="max-height:none;margin-top:6px"><p class="muted small">Loading…</p></div></div>`;
+    ${sec("manage", "Manage", "", false,
+      `<div class="acts">
+        ${r.filled_at ? `<button class="btn small" data-act="unfilled" data-id="${r.id}">Undo “workbook generated”</button>` : `<button class="btn small" data-act="filled" data-id="${r.id}">Mark workbook generated</button>`}
+        ${r.delivered_at ? `<button class="btn small" data-act="undelivered" data-id="${r.id}">Undo “sent”</button>` : `<button class="btn small" data-act="delivered" data-id="${r.id}">Mark sent</button>`}
+        <button class="btn small ghost" data-act="${r.is_test?"untest":"test"}" data-id="${r.id}">${r.is_test?"Not a test":"Mark as test"}</button>
+        <button class="btn small ghost" data-act="${r.archived?"unarchive":"archive"}" data-id="${r.id}">${r.archived?"Restore":"Archive"}</button>
+      </div>
+      <div class="acts" style="margin-top:8px">
+        ${r.email?`<a class="btn small ghost" href="mailto:${esc(r.email)}">Email her</a>`:""}
+        <button class="btn small ghost" data-copy="${esc(editLink(r))}">Copy her private link</button>
+        <button class="btn small ghost" id="d_json">Download her answers (.json)</button>
+      </div>
+      <div class="danger-zone">
+        <h4>Delete this record</h4>
+        <p class="small" style="margin:0 0 8px">Removes her form, built files, signatures and activity for good. Use it for duplicates and test copies. To confirm, type her surname: <b>${esc(r.surname||"")}</b></p>
+        <div class="acts"><input id="d_del_name" placeholder="Surname" autocomplete="off" style="max-width:200px"><button class="btn small warn" id="d_del" data-id="${r.id}">Delete for good</button></div>
+      </div>`)}`;
   if(!quiet || d.hidden){ d.hidden=false; $("scrim").hidden=false; d.scrollTop=0; }
   $("d_close").onclick = closeDrawer;
   if($("d_manual_btn")) $("d_manual_btn").onclick = ()=>{ $("d_manual").hidden=false; $("d_pnote").focus(); };
   $("d_json").onclick = ()=>{ if(!DET){ toast("Still loading her answers"); return; }
     const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([JSON.stringify(DET.full, null, 1)], {type:"application/json"}));
     a.download=`EPMS_2025_${(r.surname||"nurse").replace(/\W+/g,"_")}_${(r.first_name||"").replace(/\W+/g,"_")}.json`; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),2000); };
+  $("d_del").onclick = ()=>deleteRecord(r);
   paintWorkbook(r);
+  paintHistory(r.id);
   if(DET && DET.id===id) paintDetail(r, DET);
   try{
     const det = await call("detail", {id});
@@ -671,6 +748,46 @@ async function openDetail(id, quiet){
       cso_signature: det.signatures?.sig_cso ? {png:det.signatures.sig_cso, approved:true, consent:true} : null}};
     paintDetail(r, DET);
   }catch(e){ if(openId===id){ $("d_answers").innerHTML = `<p class="err">Couldn't load her answers. Tap Refresh.</p>`; $("d_feed").innerHTML=""; } }
+}
+let SECOPEN = {};   // drawer sections you opened or closed (kept while you move between people)
+async function deleteRecord(r){
+  const typed = $("d_del_name").value.trim();
+  if(!typed || typed.toLowerCase() !== String(r.surname||"").trim().toLowerCase()){ toast("Type her surname exactly to confirm"); $("d_del_name").focus(); return; }
+  if(!confirm(`Delete ${full(r)} for good? This can't be undone from the dashboard.`)) return;
+  const b=$("d_del"); b.disabled=true; b.textContent="Deleting…";
+  try{ const out = await acall("delete", {id:r.id, confirm:typed}); closeDrawer(); toast(`Deleted ${out.deleted||full(r)}`); await refresh(true); }
+  catch(e){ toast(e.code==="confirm_mismatch" ? "The surname didn't match" : "Couldn't delete. Try again."); b.disabled=false; b.textContent="Delete for good"; }
+}
+// the assistant conversations about one person, oldest first
+async function paintHistory(id){
+  const box=$("d_hist"); if(!box) return;
+  let h; try{ h = await acall("history", {submission_id:id}); }catch(e){ if(openId===id && $("d_hist")) $("d_hist").innerHTML=`<p class="small muted">Couldn't load the history.</p>`; return; }
+  if(openId!==id || !$("d_hist")) return;
+  const convs = groupConvs(h.entries||[]);
+  $("d_hist_meta").textContent = convs.length ? `${convs.length} conversation${convs.length>1?"s":""}` : "none yet";
+  $("d_hist").innerHTML = convs.length ? convs.map((c,i)=>`<details class="hist-conv" ${i===convs.length-1?"open":""}><summary>${when(c.at)} · ${esc(c.title)}</summary>${c.entries.map(histEntry).join("")}
+      <div class="acts" style="margin-top:6px"><button class="btn small ghost" data-conv="${c.id}" data-convfor="${id}">Continue this conversation</button></div></details>`).join("")
+    : `<p class="small muted">Nothing yet. Conversations with the assistant about her are saved here in order, with your instructions, the files you gave, the plan you approved and what was done.</p>`;
+}
+function groupConvs(entries){
+  const m = new Map();
+  for(const e of entries){ if(!m.has(e.conversation_id)) m.set(e.conversation_id, {id:e.conversation_id, at:e.created_at, entries:[]}); m.get(e.conversation_id).entries.push(e); }
+  return [...m.values()].map(c=>({...c, title: (c.entries.find(e=>e.role==="admin")?.content || "Conversation").replace(/\s+/g," ").slice(0,70)}));
+}
+function planHtml(p){
+  const docs = (p.documents||[]).length ? `<ul>${p.documents.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>` : `<p style="margin:0">Nothing attached.</p>`;
+  return `<h4>What you asked me to do</h4><div>${esc(p.asked||"")}</div>
+    <h4>What you gave me</h4>${docs}
+    <h4>What I will do</h4><ol>${(p.actions||[]).map(x=>`<li>${esc(x)}</li>`).join("")}</ol>
+    ${p.notes?`<h4>Worth checking</h4><div>${esc(p.notes)}</div>`:""}`;
+}
+function histEntry(e){
+  const who = {admin:"You", assistant:"Assistant", plan:"Plan", step:"Done", note:"Note"}[e.role] || e.role;
+  let body = esc(e.content);
+  if(e.role==="plan"){ try{ body = planHtml(JSON.parse(e.content)); }catch(_){} }
+  if(e.role==="admin" && e.meta && (e.meta.files||[]).length) body += `<div class="small muted">Attached: ${esc(e.meta.files.join(", "))}</div>`;
+  if(e.role==="step" && e.meta && e.meta.error) body = `<span style="color:var(--danger)">${body}</span>`;
+  return `<div class="hist-e ${e.role}"><span class="who">${who} · ${new Date(e.created_at).toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})}</span>${body}</div>`;
 }
 function wbBadge(r){
   const b = BUILD[r.id]; if(!b) return "";
@@ -749,7 +866,7 @@ function paintDetail(r, det){
     ${kv([["Outstanding performance",X.outstanding_performance],["Areas of improvement",X.areas_of_improvement],["Training needs",X.training_needs],["Future goals",X.future_goals],["Other feedback",X.other_feedback]])}
     <h3 style="margin-top:12px">Signatures</h3><div class="sigs" style="margin-top:6px">${sigs}</div>`;
   const tw = (det.twins||[]);
-  $("d_twins").innerHTML = tw.length ? `<div class="found" style="margin-top:10px">She has <b>${tw.length} other record(s)</b> with the same IPPIS or phone: ${tw.map(t=>`<span data-open="${t.id}" style="cursor:pointer;text-decoration:underline">started ${when(t.created_at)} · ${(t.kras||[]).length} task(s) · ${t.payment_status==="paid"?"paid":"not paid"}${t.archived?" · archived":""}</span>`).join("; ")}. Keep the one she's using and archive the rest.</div>` : "";
+  $("d_twins").innerHTML = tw.length ? `<div class="found" style="margin-top:10px">She has <b>${tw.length} other record(s)</b> with the same IPPIS or phone: ${tw.map(t=>`<span data-open="${t.id}" style="cursor:pointer;text-decoration:underline">started ${when(t.created_at)} · ${(t.kras||[]).length} task(s) · ${t.payment_status==="paid"?"paid":"not paid"}${t.archived?" · archived":""}</span>`).join("; ")}. Keep the one she's using; archive or delete the rest (Manage, at the bottom).</div>` : "";
   const ICON = {created:"🆕", edited:"✏️", pay_started:"💳", paid:"✅", filled:"📄", unfilled:"↩️", delivered:"📨", undelivered:"↩️", admin:"⭐", note:"📝"};
   $("d_feed").innerHTML = (det.events||[]).map(e=>`<div class="ev"><span class="ic">${ICON[e.kind]||"•"}</span><div>${esc(e.detail)}<time>${when(e.at)} · ${ago(e.at)}</time></div></div>`).join("") || `<p class="muted small">No activity recorded.</p>`;
 }
@@ -792,10 +909,11 @@ document.addEventListener("click", e=>{
   const o = e.target.closest("[data-open]"); if(o){ openDetail(o.dataset.open); return; }
   const row = e.target.closest(".row[data-id]"); if(row){ openDetail(row.dataset.id); return; }
   const l = e.target.closest(".lnk[data-id]"); if(l && l.dataset.id){ openDetail(l.dataset.id); return; }
-  const f = e.target.closest("[data-filter]"); if(f){ filter=f.dataset.filter; render(); if(f.classList.contains("tile")) document.querySelector("#rows").scrollIntoView({behavior:"smooth", block:"start"}); }
+  const f = e.target.closest("[data-filter]"); if(f){ filter = (filter===f.dataset.filter ? "all" : f.dataset.filter); SHOW=30; render(); if(filter!=="all") $("rows").scrollIntoView({behavior:"smooth", block:"start"}); }
 });
 document.addEventListener("keydown", e=>{ if(e.key==="Enter"){ const row=e.target.closest&&e.target.closest(".row[data-id]"); if(row) openDetail(row.dataset.id); } });
-$("search").addEventListener("input", render);
+$("search").addEventListener("input", ()=>{ SHOW=30; render(); });
+$("filter_sel").addEventListener("change", e=>{ filter=e.target.value; SHOW=30; render(); });
 $("show_tests").addEventListener("change", render);
 $("show_arch").addEventListener("change", render);
 
@@ -851,7 +969,58 @@ $("pc_save").onclick = async ()=>{
 
 // ---------- admin assistant ----------
 const AI_URL = "https://myebhfkovfmltoirptrl.supabase.co/functions/v1/epms-assistant";
-const AI = {msgs:[], focus:null, busy:false, att:[], cfg:null, rec:null};
+const AI = {msgs:[], focus:null, busy:false, att:[], cfg:null, rec:null, conv:null, awaiting:false, subject:null, context:"", planBox:null};
+const newConv = ()=> (crypto.randomUUID ? crypto.randomUUID() : "10000000-1000-4000-8000-100000000000".replace(/[018]/g, c=>(c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)));
+const WRITES = ["update_record","set_signature","create_record","set_payment","build_now","delete_record"];
+const plain = h => { const d=document.createElement("div"); d.innerHTML=h; return d.textContent; };
+function aiLog(entries){   // saved in order; never blocks the conversation
+  if(!AI.conv || !entries.length) return;
+  const sid = AI.subject || AI.focus || null;
+  acall("log", {conversation_id:AI.conv, entries: entries.map(e=>({submission_id:sid, ...e}))}).catch(()=>{});
+}
+function resetConv(){ AI.msgs=[]; AI.conv=newConv(); AI.awaiting=false; AI.subject=null; AI.context=""; AI.planBox=null; $("ai_log").innerHTML=""; }
+// earlier conversations about this person: shown above, and given to the assistant as background
+async function loadEarlier(){
+  const sel=$("ai_hist"); sel.innerHTML=`<option value="">Earlier conversations…</option>`;
+  try{
+    if(AI.focus){
+      const h = await acall("history", {submission_id:AI.focus});
+      const convs = groupConvs(h.entries||[]).filter(c=>c.id!==AI.conv);
+      sel.innerHTML += convs.slice().reverse().map(c=>`<option value="${c.id}">${esc(when(c.at))} · ${esc(c.title.slice(0,40))}</option>`).join("");
+      if(convs.length && !AI.msgs.length){
+        const last = convs[convs.length-1];
+        const box = aiAdd("ai-earlier", `Earlier with her (${esc(when(last.at))}) · <a href="#" data-conv="${last.id}" data-convfor="${AI.focus}">show it</a>`);
+        AI.context = convs.slice(-3).map(convText).join("\n\n");
+      }
+    } else {
+      const h = await acall("history", {});
+      sel.innerHTML += (h.conversations||[]).map(c=>{ const r=(DATA?.rows||[]).find(x=>x.id===c.submission_id); return `<option value="${c.conversation_id}">${esc(when(c.created_at))} · ${esc(r?full(r)+": ":"")}${esc(String(c.content).slice(0,36))}</option>`; }).join("");
+    }
+  }catch(e){}
+}
+function convText(c){
+  return `Conversation of ${when(c.at)}:\n` + c.entries.map(e=>{
+    if(e.role==="plan"){ try{ const p=JSON.parse(e.content); return "Plan: " + (p.actions||[]).join("; "); }catch(_){ return "Plan: "+e.content; } }
+    return ({admin:"Admin", assistant:"Assistant", step:"Done", note:"Note"}[e.role]||e.role) + ": " + String(e.content).slice(0,1500);
+  }).join("\n");
+}
+async function showConversation(convId, forId){
+  if(forId!==undefined && forId!==AI.focus){ AI.focus=forId||null; }
+  let h; try{ h = await acall("history", {conversation_id:convId}); }catch(e){ toast("Couldn't load that conversation"); return; }
+  const c = groupConvs(h.entries||[])[0]; if(!c) return;
+  resetConv(); AI.conv = convId;
+  const firstSid = c.entries.find(e=>e.submission_id)?.submission_id; if(firstSid){ AI.focus = AI.focus || firstSid; AI.subject = firstSid; }
+  $("ai").hidden=false; $("ai_scrim").hidden=false; aiFocusLine();
+  aiAdd("ai-earlier", `Conversation of ${esc(when(c.at))}`);
+  for(const e of c.entries){
+    if(e.role==="admin") aiAdd("ai-msg you", esc(e.content) + ((e.meta?.files||[]).length?`<div style="margin-top:6px;font-size:13px;opacity:.9">${esc(e.meta.files.join(", "))}</div>`:""));
+    else if(e.role==="assistant") aiAdd("ai-msg bot", esc(e.content));
+    else if(e.role==="plan"){ try{ aiAdd("ai-plan done", planHtml(JSON.parse(e.content))); }catch(_){} }
+    else aiAdd("ai-step"+(e.meta?.error?" bad":""), esc(e.content));
+  }
+  aiAdd("ai-earlier", "You can carry on below; the assistant sees this conversation.");
+  AI.context = convText(c);
+}
 const SIGROLE = {appraisee:"her (the appraisee)", supervisor:"the supervisor", cso:"the counter-signing officer"};
 async function acall(action, extra={}){
   const r = await fetch(AI_URL, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({action, key:KEY, ...extra})});
@@ -866,7 +1035,7 @@ function aiFocusLine(){
   const u=$("ai_unfocus"); if(u) u.onclick=(e)=>{ e.preventDefault(); AI.focus=null; aiFocusLine(); };
 }
 async function openAI(focus){
-  if(focus!==undefined && focus!==AI.focus){ AI.focus=focus; AI.msgs=[]; $("ai_log").innerHTML=""; }
+  if(!AI.conv || (focus!==undefined && focus!==AI.focus)){ if(focus!==undefined) AI.focus=focus; resetConv(); }
   $("ai").hidden=false; $("ai_scrim").hidden=false; aiFocusLine(); $("ai_in").focus();
   if(!AI.cfg){ try{ AI.cfg = await acall("ping"); }catch(e){ AI.cfg = {ai:false, fast_build:false, err:true}; } }
   const c=AI.cfg, notes=[];
@@ -875,14 +1044,16 @@ async function openAI(focus){
     if(!c.ai) notes.push(`AI engine not ready: ${esc(c.ai_error||"check ANTHROPIC_API_KEY in Supabase (Edge Functions → Secrets)")}.`);
     if(!c.fast_build) notes.push(`Fast builds not ready: ${esc(c.build_error||"check GH_DISPATCH_TOKEN")}. Builds will wait for the schedule.`);
   }
-  $("ai_setup").innerHTML = notes.length ? `<div class="help"><b>Setup:</b> ${notes.join(" ")}</div>`
-    : `<div class="help" style="background:var(--green-soft)">✓ AI engine ready · ✓ Fast builds ready</div>`;
-  if(!$("ai_log").children.length) aiAdd("ai-step", "Tell me what to change. I can fill or rebuild a workbook, change tasks, figures, people or comments, add signatures, read sample forms and job descriptions, mark payment when you say so, and start the build.");
+  $("ai_setup").innerHTML = notes.length ? `<div class="help"><b>Setup:</b> ${notes.join(" ")}</div>` : "";
+  $("ai_ready").textContent = notes.length ? "" : "✓ Ready";
+  if(!$("ai_log").children.length){ aiAdd("ai-step", "Tell me what to change. I can fill or rebuild a workbook, change tasks, figures, people or comments, add signatures, read sample forms and job descriptions, mark payment when you say so, remove duplicates, and start the build. Before changing anything I show you the plan and wait for your Yes. Everything is saved to her history.\n\nSignatures: attach the photo, pick whose it is, and check the cleaned preview."); loadEarlier(); }
 }
-function closeAI(){ $("ai").hidden=true; $("ai_scrim").hidden=true; aiStopMic(); }
+function closeAI(){ $("ai").hidden=true; $("ai_scrim").hidden=true; aiStopMic(); if(openId && !$("drawer").hidden) paintHistory(openId); }
 $("ai_btn").onclick=()=>openAI(openId||null);
 $("ai_close").onclick=closeAI; $("ai_scrim").onclick=closeAI;
-$("ai_new").onclick=()=>{ AI.msgs=[]; AI.att=[]; paintAtt(); $("ai_log").innerHTML=""; openAI(); };
+$("ai_new").onclick=()=>{ AI.att=[]; paintAtt(); resetConv(); openAI(); };
+$("ai_hist").onchange=e=>{ const v=e.target.value; e.target.value=""; if(v) showConversation(v); };
+document.addEventListener("click", e=>{ const b=e.target.closest("[data-conv]"); if(b){ e.preventDefault(); showConversation(b.dataset.conv, b.dataset.convfor||undefined); } });
 document.addEventListener("click", e=>{ const b=e.target.closest("[data-ai]"); if(b){ openAI(b.dataset.ai); } });
 document.addEventListener("keydown", e=>{ if(e.key==="Escape" && !$("ai").hidden) closeAI(); });
 try{ const m=localStorage.getItem("epms_ai_model"); if(m) $("ai_model").value=m; }catch(e){}
@@ -1011,6 +1182,8 @@ function stepText(name, input){
     case "set_payment": return input.status==="complimentary" ? "Making her complimentary" : "Marking her paid";
     case "build_now": return "Starting the build";
     case "build_status": return "Checking the build";
+    case "delete_record": return "Deleting the record" + (input.reason?` (${esc(input.reason)})`:"");
+    case "propose_plan": return "Writing out the plan";
   }
   return esc(name);
 }
@@ -1020,9 +1193,9 @@ function compactMsgs(msgs){
   return msgs.map((m,i)=> i>=lastUser || m.role!=="user" || !Array.isArray(m.content) ? m :
     {...m, content: m.content.map(c=> c.type==="image"||c.type==="document" ? {type:"text", text:"[attachment shown earlier]"} : c)});
 }
-async function streamTurn(model){
+async function streamTurn(model, approved){
   const r = await fetch(AI_URL, {method:"POST", headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({action:"chat", key:KEY, model, focus_id:AI.focus, messages:compactMsgs(AI.msgs)})});
+    body: JSON.stringify({action:"chat", key:KEY, model, approved, focus_id:AI.focus, messages:compactMsgs(AI.msgs)})});
   if(!r.ok){ let j={}; try{ j=await r.json(); }catch(e){} throw new Error(j.error==="no_ai_key" ? "The Anthropic API key isn't set up yet (see Setup above)." : (j.message||j.error||("Error "+r.status))); }
   const reader=r.body.getReader(), dec=new TextDecoder(); let buf="", stop=null; const blocks=[]; let bubble=null;
   for(;;){ const {value, done}=await reader.read(); if(done) break; buf+=dec.decode(value,{stream:true});
@@ -1040,12 +1213,17 @@ async function streamTurn(model){
     .filter(b=> b.type!=="text" || b.text.trim());
   return {content, stop};
 }
-async function aiSend(){
+const YES = /^\s*(yes|yeah|yep|ok|okay|go ahead|go on|proceed|confirm(ed)?|approved?|do it|carry on|that'?s (fine|okay|ok)|fine|sure|correct)\b[\s.!,]*(please|go ahead|proceed|do it|thanks?|thank you)?[\s.!]*$/i;
+async function aiSend(textOverride, approve){
   if(AI.busy) return;
-  const text=$("ai_in").value.trim();
+  const text = (typeof textOverride==="string" ? textOverride : $("ai_in").value).trim();
   if(!text && !AI.att.length) return;
+  if(!AI.conv) AI.conv = newConv();
+  // approval counts only for the plan on screen, by the Yes button or a plain "yes"
+  const approved = AI.awaiting && !AI.att.length && (approve===true || YES.test(text));
+  if(AI.planBox){ AI.planBox.classList.add("done"); const pb=AI.planBox.querySelector(".plan-btns"); if(pb) pb.innerHTML = approved ? "<b>✓ You approved this plan</b>" : "<b>You asked for changes</b>"; AI.planBox=null; }
   aiStopMic(); AI.busy=true; $("ai_send").disabled=true;
-  const content=[], shown=[];
+  const content=[], shown=[], files=[];
   try{
     for(const a of AI.att){
       if(a.kind==="image" && a.role){
@@ -1053,43 +1231,69 @@ async function aiSend(){
         content.push({type:"text", text:`[Signature of ${SIGROLE[a.role]} attached as file_id ${up.id} (${a.name}). Use set_signature with role "${a.role}".]`});
         content.push({type:"image", source:{type:"base64", media_type:"image/png", data:png.split(",")[1]}});
         shown.push(`<img src="${png}" alt="" style="max-height:40px;background:#fff;border-radius:4px;vertical-align:middle"> signature of ${esc(SIGROLE[a.role])}`);
+        files.push(`${a.name} (signature of ${SIGROLE[a.role]})`);
       } else if(a.kind==="image"){
         const mt=(a.url.match(/^data:([^;]+)/)||[])[1]||"image/jpeg";
-        content.push({type:"text", text:`[Image attached: ${a.name}]`}); content.push({type:"image", source:{type:"base64", media_type:mt, data:a.url.split(",")[1]}}); shown.push(`🖼 ${esc(a.name)}`);
-      } else if(a.kind==="pdf"){ content.push({type:"document", source:{type:"base64", media_type:"application/pdf", data:a.b64}, title:a.name}); shown.push(`📄 ${esc(a.name)}`); }
-      else { content.push({type:"text", text:`[File: ${a.name}]\n${a.text}`}); shown.push(`📄 ${esc(a.name)}`); }
+        content.push({type:"text", text:`[Image attached: ${a.name}]`}); content.push({type:"image", source:{type:"base64", media_type:mt, data:a.url.split(",")[1]}}); shown.push(`🖼 ${esc(a.name)}`); files.push(a.name);
+      } else if(a.kind==="pdf"){ content.push({type:"document", source:{type:"base64", media_type:"application/pdf", data:a.b64}, title:a.name}); shown.push(`📄 ${esc(a.name)}`); files.push(a.name); }
+      else { content.push({type:"text", text:`[File: ${a.name}]\n${a.text}`}); shown.push(`📄 ${esc(a.name)}`); files.push(a.name); }
     }
   }catch(e){ aiAdd("ai-step bad", "Couldn't upload an attachment: "+esc(e.message)); AI.busy=false; $("ai_send").disabled=false; return; }
-  if(text) content.push({type:"text", text});
+  if(AI.context && !AI.msgs.length){ content.unshift({type:"text", text:"[Earlier conversations with the admin about this, for background only. Nothing in them is approved now.]\n"+AI.context.slice(-30000)}); AI.context=""; }
+  if(text) content.push({type:"text", text: approved ? text + "\n[The admin approved the plan above.]" : text});
   aiAdd("ai-msg you", esc(text) + (shown.length?`<div style="margin-top:6px;font-size:13px;opacity:.9">${shown.join("<br>")}</div>`:""));
-  AI.msgs.push({role:"user", content}); AI.att=[]; paintAtt(); $("ai_in").value="";
+  aiLog([{role:"admin", content:text, meta: files.length ? {files} : (approved ? {approved:true} : {})}]);
+  // after a plan, the conversation ends with the tool result; her answer joins that same turn
+  const last = AI.msgs[AI.msgs.length-1];
+  if(last && last.role==="user") last.content = last.content.concat(content); else AI.msgs.push({role:"user", content});
+  AI.att=[]; paintAtt(); if(typeof textOverride!=="string") $("ai_in").value="";
+  AI.awaiting=false;
   const model=$("ai_model").value; let built=new Set();
   try{
     for(let turn=0; turn<30; turn++){
       const think=aiAdd("ai-step","Thinking…");
-      let res; try{ res=await streamTurn(model); } finally { think.remove(); }
+      let res; try{ res=await streamTurn(model, approved); } finally { think.remove(); }
       AI.msgs.push({role:"assistant", content:res.content});
+      const said = res.content.filter(c=>c.type==="text").map(c=>c.text).join("\n").trim();
+      if(said) aiLog([{role:"assistant", content:said}]);
       const calls=res.content.filter(c=>c.type==="tool_use");
       if(res.stop!=="tool_use" || !calls.length){ if(res.stop==="max_tokens") aiAdd("ai-step bad","That reply was cut off. Say “continue” to carry on."); break; }
-      const steps = calls.map(c=>aiAdd("ai-step", stepText(c.name, c.input)+" …"));
-      const out = await acall("tools", {calls: calls.map(c=>({id:c.id, name:c.name, input:c.input}))});
+      for(const c of calls){ const rid = c.input && (c.input.id || c.input.record_id); if(rid && /^[0-9a-f-]{36}$/i.test(rid) && c.name!=="find_records") AI.subject = rid; }
+      const plan = calls.find(c=>c.name==="propose_plan");
+      const steps = calls.filter(c=>c.name!=="propose_plan").map(c=>[c, aiAdd("ai-step", stepText(c.name, c.input)+" …")]);
+      const out = await acall("tools", {approved, calls: calls.map(c=>({id:c.id, name:c.name, input:c.input}))});
+      const logs=[];
       out.results.forEach((r,i)=>{ let v={}; try{ v=JSON.parse(r.content); }catch(e){}
-        const c=calls[i]; steps[i].innerHTML = stepText(c.name, c.input) + (v && v.error ? ` - <b>${esc(v.error)}</b>` : " ✓");
-        if(v && v.error) steps[i].classList.add("bad");
+        const c=calls[i]; const st=steps.find(x=>x[0]===c); const line=stepText(c.name, c.input);
+        if(st){ st[1].innerHTML = line + (v && v.error ? ` - <b>${esc(v.error)}</b>` : " ✓"); if(v && v.error) st[1].classList.add("bad"); }
+        if(WRITES.includes(c.name) && !(v && v.error && /^Not approved/.test(v.error))) logs.push({role:"step", content: plain(line) + (v && v.error ? " - " + v.error : ""), meta: v && v.error ? {error:true} : {}});
+        if(c.name==="create_record" && v && v.ok && v.id) AI.subject = v.id;
         if(c.name==="build_now" && v && v.ok) built.add(c.input.id);
+        if(c.name==="delete_record" && v && v.ok){ AI.changed=true; if(AI.focus===c.input.id) AI.focus=null; if(AI.subject===c.input.id) AI.subject=null; }
         if(["update_record","set_signature","set_payment","create_record"].includes(c.name) && v && v.ok) AI.changed=true; });
+      if(logs.length) aiLog(logs);
       AI.msgs.push({role:"user", content: out.results});
+      if(plan){
+        const box = aiAdd("ai-plan", planHtml(plan.input) + `<div class="ask">Is that okay?</div><div class="acts plan-btns" style="margin-top:8px"><button class="btn small primary" data-plan="yes">Yes, go ahead</button><button class="btn small" data-plan="change">Change something</button></div>`);
+        AI.planBox = box; AI.awaiting = true;
+        aiLog([{role:"plan", content: JSON.stringify(plan.input)}]);
+        break;   // wait for her answer
+      }
     }
-  }catch(e){ aiAdd("ai-step bad", esc(e.message||"Something went wrong")); }
+  }catch(e){ aiAdd("ai-step bad", esc(e.message||"Something went wrong")); aiLog([{role:"note", content:"Error: "+(e.message||"something went wrong"), meta:{error:true}}]); }
   AI.busy=false; $("ai_send").disabled=false;
   if(AI.changed){ AI.changed=false; try{ await load(); }catch(e){} }
-  built.forEach(id=>watchBuild(id, aiAdd("ai-files", "Building her files… they'll appear here in about two minutes.")));
+  built.forEach(id=>watchBuild(id, aiAdd("ai-files", "Building her files… they'll appear here in about two minutes."), true));
 }
-$("ai_send").onclick=aiSend;
+document.addEventListener("click", e=>{ const b=e.target.closest("[data-plan]"); if(!b || AI.busy) return;
+  if(b.dataset.plan==="yes") aiSend("Yes, go ahead.", true);
+  else { $("ai_in").placeholder="Say what to change in the plan…"; $("ai_in").focus(); } });
+$("ai_send").onclick=()=>aiSend();
 $("ai_in").addEventListener("keydown", e=>{ if(e.key==="Enter" && (e.ctrlKey||e.metaKey)) aiSend(); });
 
 // watch a build and show the links the moment it finishes
-async function watchBuild(id, box){
+async function watchBuild(id, box, logIt){
+  const conv = AI.conv;
   const start=Date.now(); let base=null;
   try{ base=(await bcall("files",{id})).built_at; }catch(e){}
   const tick=async()=>{
@@ -1101,6 +1305,7 @@ async function watchBuild(id, box){
         <div class="acts" style="margin-top:6px">${pr?`<a class="btn small primary" href="${pr.view}" target="_blank" rel="noopener">View printed</a>`:""}${xl?`<a class="btn small" href="${xl.download}">Workbook (.xlsx)</a>`:""}${pr?`<a class="btn small" href="${pr.download}">Printed PDF</a>`:""}${sm?`<a class="btn small" href="${sm.download}">Summary</a>`:""}</div>
         ${(rep.flags||[]).length?`<div class="small" style="margin-top:6px">To check: ${esc(rep.flags.join("; "))}</div>`:""}`;
       if(box) box.innerHTML=html; else toast("Her workbook is ready");
+      if(logIt && conv) acall("log", {conversation_id:conv, entries:[{submission_id:id, role:"step", content:`Files built${rep.quarters?`: quarters ${rep.quarters.join(", ")}`:""}${rep.results_total!=null?`, ${rep.results_met}/${rep.results_total} at target`:""}`}]}).catch(()=>{});
       try{ await loadBuild(); if(openId===id) openDetail(id,true); }catch(e){}
       return;
     }

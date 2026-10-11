@@ -16,6 +16,8 @@ const REPO = "buildnet6/uch-epms-form";
 const MODELS = ["claude-opus-5-5", "claude-sonnet-5", "claude-haiku-4-5-20251001"];
 const SIG_FIELD: Record<string, string> = { appraisee: "signature", supervisor: "supervisor_signature", cso: "cso_signature" };
 const ROOTS = new Set(["employee", "supervisor", "countersigning_officer", "kras", "monthly", "quarterly", "extras", "contract", "own_contract"]);
+// tools that change something: they run only after the admin has approved the written plan
+const WRITE_TOOLS = new Set(["update_record", "set_signature", "create_record", "set_payment", "build_now", "delete_record"]);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
@@ -129,6 +131,18 @@ async function catalog(): Promise<any[]> {
   if (!CATALOG) { const r = await fetch(CATALOG_URL); if (!r.ok) throw new Error("task list unavailable"); CATALOG = await r.json(); }
   return CATALOG!;
 }
+// remove a record completely: its built files, activity and the row itself (a small copy without signatures is kept)
+export async function deleteRecord(id: string, reason: string) {
+  const r = await getRow(id); if (!r) return { error: "not found" };
+  const name = [r.first_name, r.surname].filter(Boolean).join(" ");
+  await db.from("epms_deleted").upsert({ id, name, ippis: r.ippis, reason: reason.slice(0, 300),
+    snapshot: { ...r, data: withoutSignatures(r.data) } });
+  const { data: files } = await db.storage.from("epms-workbooks").list(id, { limit: 100 });
+  if (files?.length) await db.storage.from("epms-workbooks").remove(files.map((f: any) => `${id}/${f.name}`));
+  const { error } = await db.from("epms_submissions").delete().eq("id", id);
+  if (error) return { error: "could not delete" };
+  return { ok: true, deleted: name, files_removed: files?.length ?? 0 };
+}
 async function getRow(id: string) {
   const { data } = await db.from("epms_submissions").select("*").eq("id", id).maybeSingle();
   return data;
@@ -136,6 +150,15 @@ async function getRow(id: string) {
 
 // ---------- tools Claude can use ----------
 const TOOLS = [
+  { name: "propose_plan", description: "Before ANY change (update_record, set_signature, create_record, set_payment, build_now, delete_record), show the admin the plan and stop. She answers with Yes or with corrections. Read-only tools need no plan.",
+    input_schema: { type: "object", properties: {
+      record_id: { type: "string", description: "the record the plan is about, if one" },
+      record_name: { type: "string" },
+      asked: { type: "string", description: "what the admin asked, in your own plain words" },
+      documents: { type: "array", items: { type: "string" }, description: "each file she gave, and what you take it to be (e.g. 'signature 1 - supervisor, Offor Gladys')" },
+      actions: { type: "array", items: { type: "string" }, description: "each change you will make, specific (tasks, months, fields, signatures, payment, build, delete)" },
+      notes: { type: "string", description: "anything missing or worth checking first (optional)" } },
+      required: ["asked", "documents", "actions"] } },
   { name: "find_records", description: "Find staff records by name, IPPIS, phone or unit. Returns up to 10 matches with id and status.",
     input_schema: { type: "object", properties: { query: { type: "string" } }, required: ["query"] } },
   { name: "get_record", description: "Read one staff record in full (signature images are shown only as present/absent), with payment and build status.",
@@ -159,13 +182,23 @@ const TOOLS = [
       amount: { type: "number" }, note: { type: "string" } }, required: ["id", "status"] } },
   { name: "build_now", description: "Start building her workbook, printed PDF and summary immediately (ready in about two minutes).",
     input_schema: { type: "object", properties: { id: { type: "string" } }, required: ["id"] } },
+  { name: "delete_record", description: "Delete a staff record completely (its form, built files and activity). Only for duplicates or records the admin explicitly asks to remove, and only after she has approved a plan naming it.",
+    input_schema: { type: "object", properties: { id: { type: "string" }, reason: { type: "string" } }, required: ["id", "reason"] } },
   { name: "build_status", description: "Whether her files are up to date, being built, or blocked (and why), with the last quarterly scores and flags.",
     input_schema: { type: "object", properties: { id: { type: "string" } }, required: ["id"] } },
 ];
 
-async function runTool(name: string, input: any): Promise<unknown> {
+async function runTool(name: string, input: any, approved: boolean): Promise<unknown> {
   const id = typeof input?.id === "string" && UUID.test(input.id) ? input.id : null;
+  if (WRITE_TOOLS.has(name) && !approved)
+    return { error: "Not approved yet. Call propose_plan (what she asked, the documents she gave, each change you will make), then stop and wait for her answer. Make no changes before she says yes." };
   switch (name) {
+    case "propose_plan":
+      return { shown: true, note: "The plan is on her screen. Stop now and wait for her answer." };
+    case "delete_record": {
+      if (!id) return { error: "bad id" };
+      return await deleteRecord(id, String(input?.reason ?? "deleted by the assistant"));
+    }
     case "find_records": {
       const q = String(input?.query ?? "").trim().replace(/[%,()]/g, " ").slice(0, 60);
       if (!q) return { error: "empty query" };
@@ -317,10 +350,60 @@ Deno.serve(async (req) => {
     const results = [];
     for (const c of calls) {
       let out: unknown;
-      try { out = await runTool(String(c?.name), c?.input ?? {}); } catch (e) { out = { error: String((e as Error).message ?? e) }; }
+      try { out = await runTool(String(c?.name), c?.input ?? {}, body.approved === true); } catch (e) { out = { error: String((e as Error).message ?? e) }; }
       results.push({ type: "tool_result", tool_use_id: String(c?.id ?? ""), content: JSON.stringify(out).slice(0, 180_000) });
     }
     return json({ results });
+  }
+
+  if (body.action === "log") {
+    // keep the conversation, in order, so the admin can see later what was asked and done for each person
+    const conv = String(body.conversation_id ?? "");
+    if (!UUID.test(conv)) return json({ error: "bad_conversation" }, 400);
+    const rows = (Array.isArray(body.entries) ? body.entries.slice(0, 50) : []).map((e: any) => ({
+      conversation_id: conv,
+      submission_id: typeof e?.submission_id === "string" && UUID.test(e.submission_id) ? e.submission_id : null,
+      role: ["admin", "assistant", "plan", "step", "note"].includes(e?.role) ? e.role : "note",
+      content: String(e?.content ?? "").slice(0, 20_000),
+      meta: e?.meta && typeof e.meta === "object" ? e.meta : {},
+    }));
+    if (!rows.length) return json({ ok: true });
+    const { error } = await db.from("epms_assistant_messages").insert(rows);
+    if (error) return json({ error: "db" }, 500);
+    return json({ ok: true });
+  }
+
+  if (body.action === "history") {
+    // one person's conversations (oldest first), or one conversation, or the latest conversations overall
+    const sel = "id, created_at, conversation_id, submission_id, role, content, meta";
+    if (typeof body.conversation_id === "string" && UUID.test(body.conversation_id)) {
+      const { data } = await db.from("epms_assistant_messages").select(sel).eq("conversation_id", body.conversation_id).order("id").limit(1000);
+      return json({ entries: data ?? [] });
+    }
+    if (typeof body.submission_id === "string" && UUID.test(body.submission_id)) {
+      const { data: c } = await db.from("epms_assistant_messages").select("conversation_id").eq("submission_id", body.submission_id).limit(2000);
+      const convs = [...new Set((c ?? []).map((x: any) => x.conversation_id))];
+      if (!convs.length) return json({ entries: [] });
+      const { data } = await db.from("epms_assistant_messages").select(sel).in("conversation_id", convs).order("id").limit(3000);
+      return json({ entries: data ?? [] });
+    }
+    const { data } = await db.from("epms_assistant_messages").select("conversation_id, submission_id, created_at, content")
+      .eq("role", "admin").order("id", { ascending: false }).limit(300);
+    const seen = new Map<string, any>();
+    for (const r of data ?? []) if (!seen.has(r.conversation_id)) seen.set(r.conversation_id, r);
+    return json({ conversations: [...seen.values()].slice(0, 40) });
+  }
+
+  if (body.action === "delete") {
+    // the dashboard's delete button: the admin must type the person's surname to confirm
+    const id = String(body.id ?? "");
+    if (!UUID.test(id)) return json({ error: "bad_id" }, 400);
+    const r = await getRow(id); if (!r) return json({ error: "not_found" }, 404);
+    const typed = String(body.confirm ?? "").trim().toLowerCase();
+    const want = String(r.surname ?? "").trim().toLowerCase();
+    if (!want || typed !== want) return json({ error: "confirm_mismatch" }, 400);
+    const out = await deleteRecord(id, clip(body.reason, 300) || "deleted from the dashboard");
+    return json(out, (out as any).ok ? 200 : 500);
   }
 
   if (body.action === "chat") {
@@ -336,6 +419,9 @@ Deno.serve(async (req) => {
     const tools = TOOLS.map((t, i) => (i === TOOLS.length - 1 ? { ...t, cache_control: { type: "ephemeral" } } : t));
     const system: any[] = [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }];
     if (focus) system.push({ type: "text", text: focus });
+    system.push({ type: "text", text: body.approved === true
+      ? "The admin has just approved your last plan. Carry out exactly that plan now, then report briefly. If something new or different turns up, stop and propose a fresh plan."
+      : "No plan is approved for this message yet. Read what you need, then call propose_plan for any change and stop." });
     system.push({ type: "text", text: `Today is ${new Date().toISOString().slice(0, 10)}.` });
     const r = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
