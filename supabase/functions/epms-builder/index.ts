@@ -147,6 +147,21 @@ async function signedFiles(id: string) {
            failed_at: row?.build_failed_at ?? null, requested_at: row?.build_requested_at ?? null };
 }
 
+// start the GitHub build at once instead of waiting for the (often delayed) schedule; needs GH_DISPATCH_TOKEN
+async function dispatchBuild(): Promise<boolean> {
+  const token = Deno.env.get("GH_DISPATCH_TOKEN") ?? "";
+  if (!token) return false;
+  try {
+    const r = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/build-workbooks.yml/dispatches`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28",
+                 "User-Agent": "epms-builder" },
+      body: JSON.stringify({ ref: "main" }),
+    });
+    return r.status === 204;
+  } catch { return false; }
+}
+
 // ---------- admin (same passcode as the dashboard; checked against the same hash and lockout) ----------
 const unb64 = (x: string) => Uint8Array.from(atob(x), (c) => c.charCodeAt(0));
 async function pbkdf2(pass: string, salt: Uint8Array, iter: number) {
@@ -195,7 +210,7 @@ async function adminRoute(req: Request, body: any) {
   if (body.op === "files" && id) return json(await signedFiles(id));
   if (body.op === "rebuild" && id) {
     await db.from("epms_submissions").update({ build_requested_at: new Date().toISOString(), build_failed_at: null, build_error: null }).eq("id", id);
-    return json({ ok: true });
+    return json({ ok: true, started_immediately: await dispatchBuild() });
   }
   return json({ error: "unknown_op" }, 400);
 }

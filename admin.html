@@ -156,6 +156,24 @@ textarea{min-height:70px;resize:vertical}
 .pay-form label{font-size:13px;color:var(--ink-2)}
 @media (max-width:520px){ .pay-form{grid-template-columns:1fr} .kv{grid-template-columns:110px 1fr} }
 .wa-mode{display:inline-flex;align-items:center;gap:6px;color:var(--ink-2)} .wa-mode select{font:inherit;font-size:13px;padding:4px 6px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+/* assistant */
+#ai{width:min(720px,100%);display:flex;flex-direction:column;padding-bottom:12px}
+.ai-log{flex:1;overflow:auto;display:flex;flex-direction:column;gap:10px;padding:6px 2px;min-height:200px}
+.ai-msg{border-radius:12px;padding:10px 12px;max-width:94%;white-space:pre-wrap;word-wrap:break-word;font-size:14.5px}
+.ai-msg.you{align-self:flex-end;background:var(--green);color:var(--green-ink)}
+.ai-msg.bot{align-self:flex-start;background:var(--surface);border:1px solid var(--line)}
+.ai-step{align-self:flex-start;font-size:13px;color:var(--ink-2);background:var(--surface-2);border-radius:8px;padding:4px 10px}
+.ai-step.bad{color:var(--danger);background:var(--danger-soft)}
+.ai-files{align-self:flex-start;background:var(--green-soft);border-radius:10px;padding:10px 12px}
+.ai-att{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+.ai-chip{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:8px;display:grid;gap:6px;width:200px;font-size:12.5px}
+.ai-chip img{max-width:100%;max-height:90px;background:#fff;border-radius:6px;border:1px solid var(--line)}
+.ai-chip select,.ai-chip input[type=range]{padding:4px 6px;font-size:12.5px}
+.ai-bar{display:flex;gap:8px;align-items:flex-end}
+.ai-bar textarea{min-height:64px;flex:1}
+.ai-cfg{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px}
+.ai-cfg select{width:auto}
+.ai-mic.on{background:var(--danger);border-color:var(--danger);color:#fff}
 .help{font-size:13.5px;color:var(--ink-2);background:var(--surface-2);border-radius:10px;padding:10px 12px;margin-top:10px}
 </style>
 </head>
@@ -183,6 +201,7 @@ textarea{min-height:70px;resize:vertical}
         <button class="btn small" id="refresh">Refresh</button>
         <a class="btn small" href="https://claude.ai/artifact/GhV57KM5Q6MdfTxo8V79np" target="_blank" rel="noopener">Workbooks (as submitted)</a>
         <button class="btn small" id="csv">Download list (CSV)</button>
+        <button class="btn small primary" id="ai_btn" title="Type or dictate changes; attach signatures and sample forms">✦ Assistant</button>
         <button class="btn small primary" id="add_btn">+ Add a nurse</button>
         <label class="small wa-mode" title="Which WhatsApp the message buttons open">WhatsApp from BuildNET via
           <select id="wa_mode"><option value="business">WhatsApp Business app</option><option value="web">WhatsApp Web (computer)</option><option value="app">Regular WhatsApp app</option></select></label>
@@ -264,6 +283,28 @@ textarea{min-height:70px;resize:vertical}
     <button class="btn primary" id="pc_save">Save new passcode</button>
     <p class="small muted">Anyone signed in elsewhere will be asked for the new passcode.</p>
   </div>
+</aside>
+
+<!-- assistant -->
+<div class="scrim" id="ai_scrim" hidden></div>
+<aside class="drawer" id="ai" hidden role="dialog" aria-modal="true" aria-labelledby="ai_h">
+  <div class="panel-head"><div><div class="eyebrow">Admin assistant</div><h2 id="ai_h">Tell me what to change</h2><div class="small muted" id="ai_focus"></div></div>
+    <div class="acts"><button class="btn small ghost" id="ai_new">New conversation</button><button class="btn small ghost" id="ai_close">Close</button></div></div>
+  <div id="ai_setup"></div>
+  <div class="ai-cfg"><label>Engine <select id="ai_model"><option value="claude-opus-5-5">Opus 5.5 (best)</option><option value="claude-sonnet-5">Sonnet 5 (faster, cheaper)</option></select></label>
+    <span class="muted">Changes save to the record and the build starts by itself.</span></div>
+  <div class="ai-log" id="ai_log"></div>
+  <div class="ai-att" id="ai_att"></div>
+  <div class="ai-bar">
+    <textarea id="ai_in" placeholder="e.g. Fill Afere Agatha Temitope's workbook for Labour Ward (O&G). Her supervisor is ... Attach the three signatures."></textarea>
+    <div style="display:grid;gap:6px">
+      <button class="btn small ai-mic" id="ai_mic" title="Dictate">🎤 Talk</button>
+      <button class="btn small" id="ai_attach" title="Signatures, sample forms, job descriptions, photos">📎 Attach</button>
+      <button class="btn small primary" id="ai_send">Send</button>
+    </div>
+  </div>
+  <input type="file" id="ai_file" multiple hidden accept="image/*,.pdf,.xlsx,.xls,.csv,.txt,.json,.docx">
+  <p class="small muted" style="margin:6px 0 0">Signatures: attach the photo, pick whose it is, and check the cleaned preview. Excel, Word, PDF and photos of forms are read too.</p>
 </aside>
 
 <div class="toast" id="toast" hidden role="status" aria-live="polite"></div>
@@ -530,7 +571,8 @@ async function openDetail(id, quiet){
     <span class="badge ${s.cls}">${esc(s.label)}</span> ${r.is_test?'<span class="badge b-grey">test profile</span>':''} ${r.complimentary?'<span class="badge b-blue">complimentary</span>':''} ${r.source==="admin"?'<span class="badge b-grey">added by you</span>':''} ${r.archived?'<span class="badge b-grey">archived</span>':''}
     <div id="d_twins"></div>
 
-    <div class="sec"><h3>Her workbook</h3><div id="d_wb"><p class="muted small">Checking for her workbook…</p></div></div>
+    <div class="sec"><h3>Her workbook</h3><div id="d_wb"><p class="muted small">Checking for her workbook…</p></div>
+      <div class="acts" style="margin-top:8px"><button class="btn small primary" data-ai="${r.id}">✦ Ask the assistant about her</button></div></div>
 
     <div class="sec"><h3>Where she is</h3>
       <div class="months" style="margin:8px 0">${months}</div>
@@ -722,7 +764,7 @@ async function act(kind, id, btn){
                 archive:{archived:true}, unarchive:{archived:false} };
   if(btn) btn.disabled=true;
   try{
-    if(kind==="rebuild"){ await bcall("rebuild", {id}); toast("Queued. The new build appears here within about 15 minutes."); await loadBuild(); }
+    if(kind==="rebuild"){ const rb = await bcall("rebuild", {id}); toast(rb.started_immediately ? "Build started. Ready in about two minutes." : "Queued. The new build appears here within about 15 minutes."); await loadBuild(); if(rb.started_immediately) watchBuild(id, null); }
     else if(kind==="recheck"){ if(btn) btn.textContent="Checking Flutterwave…";
       const r = await call("recheck", {id}); CHECK[id] = r;
       toast(r.payment_status==="paid" ? "Payment found and confirmed. Marked as paid." : r.found.length ? "Flutterwave has an attempt, but it isn't successful yet." : "Flutterwave has no payment for her yet."); }
@@ -805,6 +847,267 @@ $("pc_save").onclick = async ()=>{
     KEY=a; store.set(a, remembered); closePc(); toast("Passcode changed"); }
   catch(e){ $("pc_err").textContent="Couldn't change it. Try again."; }
 };
+
+
+// ---------- admin assistant ----------
+const AI_URL = "https://myebhfkovfmltoirptrl.supabase.co/functions/v1/epms-assistant";
+const AI = {msgs:[], focus:null, busy:false, att:[], cfg:null, rec:null};
+const SIGROLE = {appraisee:"her (the appraisee)", supervisor:"the supervisor", cso:"the counter-signing officer"};
+async function acall(action, extra={}){
+  const r = await fetch(AI_URL, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({action, key:KEY, ...extra})});
+  let j = {}; try{ j = await r.json(); }catch(e){}
+  if(!r.ok){ const e = new Error(j.message || j.error || ("http_"+r.status)); e.code = j.error || r.status; throw e; }
+  return j;
+}
+function aiAdd(cls, html){ const d=document.createElement("div"); d.className=cls; d.innerHTML=html; $("ai_log").appendChild(d); $("ai_log").scrollTop=$("ai_log").scrollHeight; return d; }
+function aiFocusLine(){
+  const r = AI.focus && (DATA?.rows||[]).find(x=>x.id===AI.focus);
+  $("ai_focus").innerHTML = r ? `Working on <b>${esc(full(r))}</b> · <a href="#" id="ai_unfocus">work on someone else</a>` : "Name the person in your message, or open her record and tap “Ask the assistant about her”.";
+  const u=$("ai_unfocus"); if(u) u.onclick=(e)=>{ e.preventDefault(); AI.focus=null; aiFocusLine(); };
+}
+async function openAI(focus){
+  if(focus!==undefined && focus!==AI.focus){ AI.focus=focus; AI.msgs=[]; $("ai_log").innerHTML=""; }
+  $("ai").hidden=false; $("ai_scrim").hidden=false; aiFocusLine(); $("ai_in").focus();
+  if(!AI.cfg){ try{ AI.cfg = await acall("ping"); }catch(e){ AI.cfg = {ai:false, fast_build:false, err:true}; } }
+  const c=AI.cfg, notes=[];
+  if(c.err) notes.push("The assistant service isn't reachable yet.");
+  else{
+    if(!c.ai) notes.push("Add your Anthropic API key as the secret <b>ANTHROPIC_API_KEY</b> in Supabase (Edge Functions → Secrets).");
+    if(!c.fast_build) notes.push("For builds in about two minutes, add the GitHub token as the secret <b>GH_DISPATCH_TOKEN</b>. Until then builds wait for the schedule.");
+  }
+  $("ai_setup").innerHTML = notes.length ? `<div class="help"><b>Setup:</b> ${notes.join(" ")}</div>` : "";
+  if(!$("ai_log").children.length) aiAdd("ai-step", "Tell me what to change. I can fill or rebuild a workbook, change tasks, figures, people or comments, add signatures, read sample forms and job descriptions, mark payment when you say so, and start the build.");
+}
+function closeAI(){ $("ai").hidden=true; $("ai_scrim").hidden=true; aiStopMic(); }
+$("ai_btn").onclick=()=>openAI(openId||null);
+$("ai_close").onclick=closeAI; $("ai_scrim").onclick=closeAI;
+$("ai_new").onclick=()=>{ AI.msgs=[]; AI.att=[]; paintAtt(); $("ai_log").innerHTML=""; openAI(); };
+document.addEventListener("click", e=>{ const b=e.target.closest("[data-ai]"); if(b){ openAI(b.dataset.ai); } });
+document.addEventListener("keydown", e=>{ if(e.key==="Escape" && !$("ai").hidden) closeAI(); });
+try{ const m=localStorage.getItem("epms_ai_model"); if(m) $("ai_model").value=m; }catch(e){}
+$("ai_model").onchange=()=>{ try{ localStorage.setItem("epms_ai_model", $("ai_model").value); }catch(e){} };
+
+// dictation (Chrome, Edge, Android)
+function aiStopMic(){ if(AI.rec){ try{ AI.rec.stop(); }catch(e){} AI.rec=null; $("ai_mic").classList.remove("on"); $("ai_mic").textContent="🎤 Talk"; } }
+$("ai_mic").onclick=()=>{
+  if(AI.rec){ aiStopMic(); return; }
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR){ toast("Dictation isn't supported in this browser. Use your keyboard's microphone."); return; }
+  const rec = new SR(); rec.lang = "en-NG"; rec.continuous = true; rec.interimResults = true;
+  const base = $("ai_in").value ? $("ai_in").value.replace(/\s*$/," ") : "";
+  let finalText = "";
+  rec.onresult = ev=>{ let interim=""; for(let i=ev.resultIndex;i<ev.results.length;i++){ const t=ev.results[i][0].transcript; if(ev.results[i].isFinal) finalText+=t+" "; else interim+=t; } $("ai_in").value = base+finalText+interim; };
+  rec.onend = ()=>{ if(AI.rec===rec) aiStopMic(); };
+  rec.onerror = ()=>aiStopMic();
+  AI.rec=rec; rec.start(); $("ai_mic").classList.add("on"); $("ai_mic").textContent="■ Stop";
+};
+
+// attachments
+$("ai_attach").onclick=()=>$("ai_file").click();
+$("ai_file").onchange=async ()=>{ for(const f of $("ai_file").files) await addAtt(f); $("ai_file").value=""; };
+const readAs = (f, how)=>new Promise((ok,no)=>{ const r=new FileReader(); r.onload=()=>ok(r.result); r.onerror=no; r[how](f); });
+function loadScript(src){ return new Promise((ok,no)=>{ if(document.querySelector(`script[src="${src}"]`)) return ok(); const s=document.createElement("script"); s.src=src; s.onload=ok; s.onerror=no; document.head.appendChild(s); }); }
+async function addAtt(f){
+  const n=f.name||"file", ext=n.split(".").pop().toLowerCase();
+  const a={name:n, file:f};
+  try{
+    if(f.type.startsWith("image/")){
+      a.kind="image"; a.url=await readAs(f,"readAsDataURL");
+      a.img=await new Promise((ok,no)=>{ const i=new Image(); i.onload=()=>ok(i); i.onerror=no; i.src=a.url; });
+      a.role=/sign|sig/i.test(n)?"appraisee":""; a.strength=0.5; a.bold=true; a.mode="auto";
+    } else if(ext==="pdf"){ a.kind="pdf"; a.b64=(await readAs(f,"readAsDataURL")).split(",")[1]; }
+    else if(["xlsx","xls","csv"].includes(ext)){
+      await loadScript("https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js");
+      const wb = XLSX.read(await readAs(f,"readAsArrayBuffer"), {type:"array"});
+      a.kind="text"; a.text = wb.SheetNames.map(sn=>{ const csv=XLSX.utils.sheet_to_csv(wb.Sheets[sn], {blankrows:false}).split("\n").filter(l=>l.replace(/,/g,"").trim()).join("\n"); return `--- sheet: ${sn} ---\n${csv}`; }).join("\n\n").slice(0,120000);
+    } else if(ext==="docx"){
+      await loadScript("https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js");
+      a.kind="text"; a.text=(await mammoth.extractRawText({arrayBuffer: await readAs(f,"readAsArrayBuffer")})).value.slice(0,120000);
+    } else { a.kind="text"; a.text=String(await readAs(f,"readAsText")).slice(0,120000); }
+  }catch(e){ toast("Couldn't read "+n); return; }
+  AI.att.push(a); paintAtt();
+}
+function paintAtt(){
+  const box=$("ai_att"); box.innerHTML="";
+  AI.att.forEach((a,i)=>{
+    const c=document.createElement("div"); c.className="ai-chip";
+    if(a.kind==="image"){
+      if(a.role){ a.clean = cleanSig(a.img, a.strength, a.mode, a.bold); }
+      c.innerHTML = `<b>${esc(a.name)}</b><img src="${a.role?a.clean:a.url}" alt="">
+        <select data-k="role"><option value="">Not a signature (photo/screenshot)</option>${Object.entries(SIGROLE).map(([k,v])=>`<option value="${k}" ${a.role===k?"selected":""}>Signature of ${v}</option>`).join("")}</select>
+        ${a.role?`<label>Clean-up <input type="range" min="0.15" max="0.9" step="0.05" value="${a.strength}" data-k="strength"></label>
+        <label class="check small"><input type="checkbox" data-k="bold" ${a.bold?"checked":""}> Bolder strokes</label>
+        <select data-k="mode"><option value="auto" ${a.mode==="auto"?"selected":""}>Ink: automatic</option><option value="blue" ${a.mode==="blue"?"selected":""}>Blue ink (ignore ruled lines)</option><option value="dark" ${a.mode==="dark"?"selected":""}>Black/dark ink</option></select>`:""}
+        <button class="btn small ghost" data-k="rm">Remove</button>`;
+    } else c.innerHTML = `<b>${esc(a.name)}</b><span class="muted">${a.kind==="pdf"?"PDF":"Text read"}${a.text?` · ${a.text.length.toLocaleString()} characters`:""}</span><button class="btn small ghost" data-k="rm">Remove</button>`;
+    c.oninput=c.onchange=(e)=>{ const k=e.target.dataset.k; if(!k||k==="rm") return;
+      if(k==="role") a.role=e.target.value; if(k==="strength") a.strength=Number(e.target.value); if(k==="bold") a.bold=e.target.checked; if(k==="mode") a.mode=e.target.value;
+      if(e.type==="change"||k==="strength") paintAtt(); };
+    c.onclick=(e)=>{ if(e.target.dataset.k==="rm"){ AI.att.splice(i,1); paintAtt(); } };
+    box.appendChild(c);
+  });
+}
+// signature clean-up: paper (whatever its tint) becomes transparent, ink becomes even dark blue or black,
+// printed/ruled lines, specks and edge shadows are dropped, thin strokes are thickened so they print clearly
+function cleanSig(img, strength=0.5, mode="auto", bold=true){
+  const sc=Math.min(1, 1400/Math.max(img.width,img.height)); const w=Math.max(1,Math.round(img.width*sc)), h=Math.max(1,Math.round(img.height*sc));
+  const cv=document.createElement("canvas"); cv.width=w; cv.height=h; const cx=cv.getContext("2d"); cx.drawImage(img,0,0,w,h);
+  const px=cx.getImageData(0,0,w,h).data, N=w*h, L=new Float32Array(N), C=new Float32Array(N);
+  for(let i=0;i<N;i++){ const r=px[i*4],g=px[i*4+1],b=px[i*4+2]; L[i]=.299*r+.587*g+.114*b; C[i]=b-(r+g)/2; }
+  // paper brightness and tint, block by block (from the brighter half of each block)
+  const B=Math.max(16,Math.round(Math.max(w,h)/40)), bw=Math.ceil(w/B), bh=Math.ceil(h/B), bgL=new Float32Array(bw*bh), bgC=new Float32Array(bw*bh);
+  for(let by=0;by<bh;by++) for(let bx=0;bx<bw;bx++){ let s=0,n=0; const y1=Math.min(h,(by+1)*B), x1=Math.min(w,(bx+1)*B);
+    for(let y=by*B;y<y1;y++) for(let x=bx*B;x<x1;x++){ s+=L[y*w+x]; n++; } const m=s/n; let sl=0,sc2=0,n2=0;
+    for(let y=by*B;y<y1;y++) for(let x=bx*B;x<x1;x++){ const i=y*w+x; if(L[i]>=m){ sl+=L[i]; sc2+=C[i]; n2++; } }
+    bgL[by*bw+bx]=Math.max(60,n2?sl/n2:m); bgC[by*bw+bx]=n2?sc2/n2:0; }
+  const at=(arr,x,y)=>{ const fx=Math.min(bw-1,Math.max(0,x/B-.5)), fy=Math.min(bh-1,Math.max(0,y/B-.5)), x0=Math.floor(fx), y0=Math.floor(fy), x1=Math.min(bw-1,x0+1), y1=Math.min(bh-1,y0+1), tx=fx-x0, ty=fy-y0;
+    return (arr[y0*bw+x0]*(1-tx)+arr[y0*bw+x1]*tx)*(1-ty)+(arr[y1*bw+x0]*(1-tx)+arr[y1*bw+x1]*tx)*ty; };
+  const D=new Float32Array(N), E=new Float32Array(N); let dark=0, blueish=0;
+  for(let y=0;y<h;y++) for(let x=0;x<w;x++){ const i=y*w+x, bl=at(bgL,x,y); D[i]=(bl-L[i])/bl; E[i]=C[i]-at(bgC,x,y);
+    if(D[i]>0.12){ dark++; if(E[i]>8) blueish++; } }
+  const blue = mode==="blue" || (mode==="auto" && dark>0 && blueish/dark>0.25);
+  const A=new Float32Array(N);
+  for(let i=0;i<N;i++){
+    if(blue){ const t=2+10*strength; A[i]= D[i]>0.02 ? Math.min(1,Math.max(0,(E[i]-t)/8 + Math.max(0,D[i]-0.25))) : 0; }
+    else { const t=0.10+0.26*strength; A[i]=Math.min(1,Math.max(0,(D[i]-t)/(t*0.9))); }
+  }
+  if(!blue){ // thin lines running across most of the page are paper rules, not ink
+    for(let y=0;y<h;y++){ let n=0; for(let x=0;x<w;x++) if(A[y*w+x]>0.3) n++; if(n>0.5*w){ for(let x=0;x<w;x++){ const up=y>3?A[(y-4)*w+x]:0, dn=y<h-4?A[(y+4)*w+x]:0; if(up<0.3&&dn<0.3) A[y*w+x]=0; } } }
+  }
+  // keep real strokes: drop specks and anything touching the photo's edge (shadows, page corners)
+  const lab=new Int32Array(N).fill(-1), sizes=[], edge=[], stack=new Int32Array(N); let total=0;
+  for(let i=0;i<N;i++){ if(A[i]<=0.25||lab[i]>=0) continue; const id=sizes.length; let sp=0, n=0, touch=false; stack[sp++]=i; lab[i]=id;
+    while(sp){ const k=stack[--sp]; n++; const x=k%w, y=(k-x)/w; if(x===0||y===0||x===w-1||y===h-1) touch=true;
+      for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++){ const xx=x+dx, yy=y+dy; if(xx<0||yy<0||xx>=w||yy>=h) continue; const j=yy*w+xx; if(lab[j]<0&&A[j]>0.25){ lab[j]=id; stack[sp++]=j; } } }
+    sizes.push(n); edge.push(touch); total+=n; }
+  const keep=sizes.map((n,id)=> !edge[id] && n>=Math.max(12,total*0.004));
+  if(!keep.some(Boolean)) sizes.forEach((n,id)=>{ keep[id]=n>=Math.max(12,total*0.004); });
+  for(let i=0;i<N;i++){ if(A[i]>0){ let ok=false; const x=i%w, y=(i-x)/w;
+      for(let dy=-1;dy<=1&&!ok;dy++) for(let dx=-1;dx<=1&&!ok;dx++){ const xx=x+dx, yy=y+dy; if(xx<0||yy<0||xx>=w||yy>=h) continue; const l=lab[yy*w+xx]; if(l>=0&&keep[l]) ok=true; }
+      if(!ok) A[i]=0; } }
+  let X0=w,Y0=h,X1=-1,Y1=-1, ink=0; for(let y=0;y<h;y++) for(let x=0;x<w;x++) if(A[y*w+x]>0.15){ ink++; if(x<X0)X0=x; if(x>X1)X1=x; if(y<Y0)Y0=y; if(y>Y1)Y1=y; }
+  if(X1<0) return img.src;
+  const pad=Math.round(Math.max(X1-X0,Y1-Y0)*0.04)+4; X0=Math.max(0,X0-pad); Y0=Math.max(0,Y0-pad); X1=Math.min(w-1,X1+pad); Y1=Math.min(h-1,Y1+pad);
+  const ow=X1-X0+1, oh=Y1-Y0+1, out=document.createElement("canvas"); out.width=ow; out.height=oh; const oc=out.getContext("2d"), od=oc.createImageData(ow,oh);
+  const thin = ink/(ow*oh) < 0.09;                       // only thicken fine pen lines
+  const col = blue ? [20,28,120] : [24,24,32], r = bold && thin ? Math.max(1,Math.round(Math.max(ow,oh)/400)) : 0;
+  for(let y=0;y<oh;y++) for(let x=0;x<ow;x++){ let a=0; for(let dy=-r;dy<=r;dy++) for(let dx=-r;dx<=r;dx++){ const yy=y+Y0+dy, xx=x+X0+dx; if(yy>=0&&yy<h&&xx>=0&&xx<w){ const v=A[yy*w+xx]; if(v>a) a=v; } }
+    const o=(y*ow+x)*4; od.data[o]=col[0]; od.data[o+1]=col[1]; od.data[o+2]=col[2]; od.data[o+3]=Math.round(Math.min(1,a*1.15)*255); }
+  oc.putImageData(od,0,0);
+  if(ow>800){ const s2=document.createElement("canvas"); s2.width=800; s2.height=Math.round(oh*800/ow); s2.getContext("2d").drawImage(out,0,0,s2.width,s2.height); return s2.toDataURL("image/png"); }
+  return out.toDataURL("image/png");
+}
+
+// conversation
+function stepText(name, input){
+  switch(name){
+    case "find_records": return `Looking up “${esc(input.query||"")}”`;
+    case "get_record": return "Reading the record";
+    case "contract_catalog": return "Checking the hospital task list" + (input.search?` (${esc(input.search)})`:"");
+    case "update_record": return "Saving: " + esc(input.summary||"changes");
+    case "set_signature": return `Adding the ${input.role==="cso"?"counter-signer's":input.role==="supervisor"?"supervisor's":"appraisee's"} signature`;
+    case "create_record": return "Creating a new record";
+    case "set_payment": return input.status==="complimentary" ? "Making her complimentary" : "Marking her paid";
+    case "build_now": return "Starting the build";
+    case "build_status": return "Checking the build";
+  }
+  return esc(name);
+}
+function compactMsgs(msgs){
+  // images and PDFs go to Claude once; later turns carry a short note instead, to keep each call quick and cheap
+  const lastUser = msgs.map(m=>m.role==="user" && Array.isArray(m.content) && m.content.some(c=>c.type==="text")).lastIndexOf(true);
+  return msgs.map((m,i)=> i>=lastUser || m.role!=="user" || !Array.isArray(m.content) ? m :
+    {...m, content: m.content.map(c=> c.type==="image"||c.type==="document" ? {type:"text", text:"[attachment shown earlier]"} : c)});
+}
+async function streamTurn(model){
+  const r = await fetch(AI_URL, {method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({action:"chat", key:KEY, model, focus_id:AI.focus, messages:compactMsgs(AI.msgs)})});
+  if(!r.ok){ let j={}; try{ j=await r.json(); }catch(e){} throw new Error(j.error==="no_ai_key" ? "The Anthropic API key isn't set up yet (see Setup above)." : (j.message||j.error||("Error "+r.status))); }
+  const reader=r.body.getReader(), dec=new TextDecoder(); let buf="", stop=null; const blocks=[]; let bubble=null;
+  for(;;){ const {value, done}=await reader.read(); if(done) break; buf+=dec.decode(value,{stream:true});
+    let k; while((k=buf.indexOf("\n\n"))>=0){ const chunk=buf.slice(0,k); buf=buf.slice(k+2);
+      const line=chunk.split("\n").find(l=>l.startsWith("data:")); if(!line) continue; let ev; try{ ev=JSON.parse(line.slice(5)); }catch(e){ continue; }
+      if(ev.type==="content_block_start"){ const b=ev.content_block; blocks[ev.index] = b.type==="tool_use" ? {...b, _json:""} : {...b, text:b.text||""}; if(b.type==="text"){ bubble=aiAdd("ai-msg bot",""); } }
+      else if(ev.type==="content_block_delta"){ const b=blocks[ev.index]; if(!b) continue;
+        if(ev.delta.type==="text_delta"){ b.text+=ev.delta.text; if(bubble){ bubble.textContent=b.text; $("ai_log").scrollTop=$("ai_log").scrollHeight; } }
+        else if(ev.delta.type==="input_json_delta") b._json+=ev.delta.partial_json; }
+      else if(ev.type==="content_block_stop"){ const b=blocks[ev.index]; if(b && b.type==="tool_use"){ try{ b.input=b._json?JSON.parse(b._json):{}; }catch(e){ b.input={}; } delete b._json; } }
+      else if(ev.type==="message_delta"){ stop=ev.delta?.stop_reason||stop; }
+      else if(ev.type==="error"){ throw new Error(ev.error?.message||"AI error"); }
+    } }
+  const content = blocks.filter(Boolean).map(b=> b.type==="text" ? {type:"text", text:b.text} : b.type==="tool_use" ? {type:"tool_use", id:b.id, name:b.name, input:b.input||{}} : null).filter(Boolean)
+    .filter(b=> b.type!=="text" || b.text.trim());
+  return {content, stop};
+}
+async function aiSend(){
+  if(AI.busy) return;
+  const text=$("ai_in").value.trim();
+  if(!text && !AI.att.length) return;
+  aiStopMic(); AI.busy=true; $("ai_send").disabled=true;
+  const content=[], shown=[];
+  try{
+    for(const a of AI.att){
+      if(a.kind==="image" && a.role){
+        const png=a.clean||cleanSig(a.img,a.strength,a.mode,a.bold); const up=await acall("upload",{kind:"signature", name:a.name, content:png});
+        content.push({type:"text", text:`[Signature of ${SIGROLE[a.role]} attached as file_id ${up.id} (${a.name}). Use set_signature with role "${a.role}".]`});
+        content.push({type:"image", source:{type:"base64", media_type:"image/png", data:png.split(",")[1]}});
+        shown.push(`<img src="${png}" alt="" style="max-height:40px;background:#fff;border-radius:4px;vertical-align:middle"> signature of ${esc(SIGROLE[a.role])}`);
+      } else if(a.kind==="image"){
+        const mt=(a.url.match(/^data:([^;]+)/)||[])[1]||"image/jpeg";
+        content.push({type:"text", text:`[Image attached: ${a.name}]`}); content.push({type:"image", source:{type:"base64", media_type:mt, data:a.url.split(",")[1]}}); shown.push(`🖼 ${esc(a.name)}`);
+      } else if(a.kind==="pdf"){ content.push({type:"document", source:{type:"base64", media_type:"application/pdf", data:a.b64}, title:a.name}); shown.push(`📄 ${esc(a.name)}`); }
+      else { content.push({type:"text", text:`[File: ${a.name}]\n${a.text}`}); shown.push(`📄 ${esc(a.name)}`); }
+    }
+  }catch(e){ aiAdd("ai-step bad", "Couldn't upload an attachment: "+esc(e.message)); AI.busy=false; $("ai_send").disabled=false; return; }
+  if(text) content.push({type:"text", text});
+  aiAdd("ai-msg you", esc(text) + (shown.length?`<div style="margin-top:6px;font-size:13px;opacity:.9">${shown.join("<br>")}</div>`:""));
+  AI.msgs.push({role:"user", content}); AI.att=[]; paintAtt(); $("ai_in").value="";
+  const model=$("ai_model").value; let built=new Set();
+  try{
+    for(let turn=0; turn<30; turn++){
+      const think=aiAdd("ai-step","Thinking…");
+      let res; try{ res=await streamTurn(model); } finally { think.remove(); }
+      AI.msgs.push({role:"assistant", content:res.content});
+      const calls=res.content.filter(c=>c.type==="tool_use");
+      if(res.stop!=="tool_use" || !calls.length){ if(res.stop==="max_tokens") aiAdd("ai-step bad","That reply was cut off. Say “continue” to carry on."); break; }
+      const steps = calls.map(c=>aiAdd("ai-step", stepText(c.name, c.input)+" …"));
+      const out = await acall("tools", {calls: calls.map(c=>({id:c.id, name:c.name, input:c.input}))});
+      out.results.forEach((r,i)=>{ let v={}; try{ v=JSON.parse(r.content); }catch(e){}
+        const c=calls[i]; steps[i].innerHTML = stepText(c.name, c.input) + (v && v.error ? ` - <b>${esc(v.error)}</b>` : " ✓");
+        if(v && v.error) steps[i].classList.add("bad");
+        if(c.name==="build_now" && v && v.ok) built.add(c.input.id);
+        if(["update_record","set_signature","set_payment","create_record"].includes(c.name) && v && v.ok) AI.changed=true; });
+      AI.msgs.push({role:"user", content: out.results});
+    }
+  }catch(e){ aiAdd("ai-step bad", esc(e.message||"Something went wrong")); }
+  AI.busy=false; $("ai_send").disabled=false;
+  if(AI.changed){ AI.changed=false; try{ await load(); }catch(e){} }
+  built.forEach(id=>watchBuild(id, aiAdd("ai-files", "Building her files… they'll appear here in about two minutes.")));
+}
+$("ai_send").onclick=aiSend;
+$("ai_in").addEventListener("keydown", e=>{ if(e.key==="Enter" && (e.ctrlKey||e.metaKey)) aiSend(); });
+
+// watch a build and show the links the moment it finishes
+async function watchBuild(id, box){
+  const start=Date.now(); let base=null;
+  try{ base=(await bcall("files",{id})).built_at; }catch(e){}
+  const tick=async()=>{
+    if(Date.now()-start>12*60_000){ if(box) box.innerHTML="Still building after 12 minutes. Check her record in a little while."; return; }
+    let f; try{ f=await bcall("files",{id}); }catch(e){ return setTimeout(tick,15000); }
+    if(f.built_at && f.built_at!==base){
+      const pick=re=>f.files.find(x=>re.test(x.name)); const xl=pick(/\.xlsx$/), pr=pick(/_Printed\.pdf$/), sm=pick(/_Summary\.pdf$/), rep=f.report||{};
+      const html=`<b>Ready.</b> ${rep.quarters?`Quarters ${rep.quarters.join(", ")}`:""}${rep.results_total!=null?` · ${rep.results_met}/${rep.results_total} at target`:""}
+        <div class="acts" style="margin-top:6px">${pr?`<a class="btn small primary" href="${pr.view}" target="_blank" rel="noopener">View printed</a>`:""}${xl?`<a class="btn small" href="${xl.download}">Workbook (.xlsx)</a>`:""}${pr?`<a class="btn small" href="${pr.download}">Printed PDF</a>`:""}${sm?`<a class="btn small" href="${sm.download}">Summary</a>`:""}</div>
+        ${(rep.flags||[]).length?`<div class="small" style="margin-top:6px">To check: ${esc(rep.flags.join("; "))}</div>`:""}`;
+      if(box) box.innerHTML=html; else toast("Her workbook is ready");
+      try{ await loadBuild(); if(openId===id) openDetail(id,true); }catch(e){}
+      return;
+    }
+    if(f.error && f.failed_at && (!base || f.failed_at>base)){ if(box) box.innerHTML=`<span style="color:var(--danger)">The build failed: ${esc(f.error)}</span>`; return; }
+    setTimeout(tick, 12000);
+  };
+  setTimeout(tick, 20000);
+}
 
 // ---------- start ----------
 KEY = store.get();
