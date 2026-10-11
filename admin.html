@@ -872,10 +872,11 @@ async function openAI(focus){
   const c=AI.cfg, notes=[];
   if(c.err) notes.push("The assistant service isn't reachable yet.");
   else{
-    if(!c.ai) notes.push("Add your Anthropic API key as the secret <b>ANTHROPIC_API_KEY</b> in Supabase (Edge Functions → Secrets).");
-    if(!c.fast_build) notes.push("For builds in about two minutes, add the GitHub token as the secret <b>GH_DISPATCH_TOKEN</b>. Until then builds wait for the schedule.");
+    if(!c.ai) notes.push(`AI engine not ready: ${esc(c.ai_error||"check ANTHROPIC_API_KEY in Supabase (Edge Functions → Secrets)")}.`);
+    if(!c.fast_build) notes.push(`Fast builds not ready: ${esc(c.build_error||"check GH_DISPATCH_TOKEN")}. Builds will wait for the schedule.`);
   }
-  $("ai_setup").innerHTML = notes.length ? `<div class="help"><b>Setup:</b> ${notes.join(" ")}</div>` : "";
+  $("ai_setup").innerHTML = notes.length ? `<div class="help"><b>Setup:</b> ${notes.join(" ")}</div>`
+    : `<div class="help" style="background:var(--green-soft)">✓ AI engine ready · ✓ Fast builds ready</div>`;
   if(!$("ai_log").children.length) aiAdd("ai-step", "Tell me what to change. I can fill or rebuild a workbook, change tasks, figures, people or comments, add signatures, read sample forms and job descriptions, mark payment when you say so, and start the build.");
 }
 function closeAI(){ $("ai").hidden=true; $("ai_scrim").hidden=true; aiStopMic(); }

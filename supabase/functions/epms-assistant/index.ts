@@ -282,7 +282,24 @@ Deno.serve(async (req) => {
   if (auth === "locked") return json({ error: "locked" }, 429);
   if (!auth) return json({ error: "wrong_passcode" }, 401);
 
-  if (body.action === "ping") return json({ ok: true, ai: !!ANTHROPIC_KEY, fast_build: !!GH_TOKEN, models: MODELS });
+  if (body.action === "ping") {
+    // check both keys really work (never returns the keys themselves)
+    let ai = false, ai_error = "", fast_build = false, build_error = "";
+    if (ANTHROPIC_KEY) {
+      try {
+        const r = await fetch("https://api.anthropic.com/v1/models?limit=1", { headers: { "x-api-key": ANTHROPIC_KEY, "anthropic-version": "2023-06-01" } });
+        ai = r.ok; if (!r.ok) ai_error = r.status === 401 ? "the Anthropic key was rejected" : `Anthropic answered ${r.status}`;
+      } catch { ai_error = "Anthropic could not be reached"; }
+    } else ai_error = "ANTHROPIC_API_KEY is not set";
+    if (GH_TOKEN) {
+      try {
+        const r = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/build-workbooks.yml`, {
+          headers: { Authorization: `Bearer ${GH_TOKEN}`, Accept: "application/vnd.github+json", "User-Agent": "epms-assistant" } });
+        fast_build = r.ok; if (!r.ok) build_error = r.status === 401 ? "the GitHub token was rejected" : r.status === 404 ? "the GitHub token can't see the uch-epms-form repository" : `GitHub answered ${r.status}`;
+      } catch { build_error = "GitHub could not be reached"; }
+    } else build_error = "GH_DISPATCH_TOKEN is not set";
+    return json({ ok: true, ai, ai_error, fast_build, build_error, models: MODELS });
+  }
 
   if (body.action === "upload") {
     // a cleaned signature (PNG data URL) or a converted document kept for the tools to use
