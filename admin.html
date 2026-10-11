@@ -1187,7 +1187,25 @@ function stepText(name, input){
   }
   return esc(name);
 }
+// every tool request must be answered in the very next message; if one was interrupted, answer it as "not done"
+function repairMsgs(msgs){
+  const out=[];
+  for(let i=0;i<msgs.length;i++){
+    const m=msgs[i]; out.push(m);
+    if(m.role!=="assistant" || !Array.isArray(m.content)) continue;
+    const ids=m.content.filter(c=>c.type==="tool_use").map(c=>c.id); if(!ids.length) continue;
+    const next=msgs[i+1];
+    const have=new Set(next && next.role==="user" && Array.isArray(next.content) ? next.content.filter(c=>c.type==="tool_result").map(c=>c.tool_use_id) : []);
+    const missing=ids.filter(id=>!have.has(id)).map(id=>({type:"tool_result", tool_use_id:id, content:JSON.stringify({error:"interrupted - this step did not run and nothing was saved"})}));
+    if(!missing.length) continue;
+    if(next && next.role==="user"){ const rest=Array.isArray(next.content)?next.content:[{type:"text", text:String(next.content)}];
+      msgs[i+1]={...next, content: missing.concat(rest.filter(c=>c.type==="tool_result")).concat(rest.filter(c=>c.type!=="tool_result"))}; }
+    else out.push({role:"user", content:missing});
+  }
+  return out;
+}
 function compactMsgs(msgs){
+  msgs = repairMsgs(msgs);
   // images and PDFs go to Claude once; later turns carry a short note instead, to keep each call quick and cheap
   const lastUser = msgs.map(m=>m.role==="user" && Array.isArray(m.content) && m.content.some(c=>c.type==="text")).lastIndexOf(true);
   return msgs.map((m,i)=> i>=lastUser || m.role!=="user" || !Array.isArray(m.content) ? m :
@@ -1253,11 +1271,21 @@ async function aiSend(textOverride, approve){
     for(let turn=0; turn<30; turn++){
       const think=aiAdd("ai-step","Thinking…");
       let res; try{ res=await streamTurn(model, approved); } finally { think.remove(); }
+      if(res.stop==="max_tokens"){
+        // the reply ran past the length limit; half-written changes are dropped (nothing was saved) and it carries on in smaller steps
+        const kept=res.content.filter(c=>c.type==="text");
+        AI.msgs.push({role:"assistant", content: kept.length ? kept : [{type:"text", text:"(reply cut off)"}]});
+        if((AI.cut=(AI.cut||0)+1) > 3){ aiAdd("ai-step bad","The replies keep running too long. Try asking for one quarter at a time."); AI.cut=0; break; }
+        aiAdd("ai-step","That step was too long to send in one go. Nothing was saved; carrying on in smaller pieces…");
+        AI.msgs.push({role:"user", content:[{type:"text", text:"[System: your last reply hit the length limit before its tool calls were complete, so none of them ran and nothing was saved. Continue the same approved plan in smaller steps: one update_record call per reply, at most three months in it.]"}]});
+        continue;
+      }
+      AI.cut=0;
       AI.msgs.push({role:"assistant", content:res.content});
       const said = res.content.filter(c=>c.type==="text").map(c=>c.text).join("\n").trim();
       if(said) aiLog([{role:"assistant", content:said}]);
       const calls=res.content.filter(c=>c.type==="tool_use");
-      if(res.stop!=="tool_use" || !calls.length){ if(res.stop==="max_tokens") aiAdd("ai-step bad","That reply was cut off. Say “continue” to carry on."); break; }
+      if(res.stop!=="tool_use" || !calls.length) break;
       for(const c of calls){ const rid = c.input && (c.input.id || c.input.record_id); if(rid && /^[0-9a-f-]{36}$/i.test(rid) && c.name!=="find_records") AI.subject = rid; }
       const plan = calls.find(c=>c.name==="propose_plan");
       const steps = calls.filter(c=>c.name!=="propose_plan").map(c=>[c, aiAdd("ai-step", stepText(c.name, c.input)+" …")]);

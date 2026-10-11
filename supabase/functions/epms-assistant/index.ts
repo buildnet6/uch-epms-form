@@ -426,7 +426,7 @@ Deno.serve(async (req) => {
     const r = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "x-api-key": ANTHROPIC_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-      body: JSON.stringify({ model, max_tokens: 12000, system, tools, messages, stream: true }),
+      body: JSON.stringify({ model, max_tokens: 16000, system, tools, messages, stream: true }),
     });
     if (!r.ok || !r.body) {
       let msg = ""; try { msg = (await r.json())?.error?.message ?? ""; } catch { /* */ }
