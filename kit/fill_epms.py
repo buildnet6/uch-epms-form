@@ -415,6 +415,10 @@ def fill(data, out_path, signature=None, supervisor_signature=None, cso_signatur
             target = pms.cell(crow, 13).value if crow else None
             if isinstance(out, (int, float)) and isinstance(target, (int, float)) and target <= 1 and out <= 1:
                 ws.cell(r, 5).number_format = '0%'   # e.g. 1 = 100%
+            elif data.get('output_words') and isinstance(out, (int, float)):
+                # word plus figure, e.g. "Achieved (99%)"; the quarterly sheet still averages the figure
+                unit = str(pms.cell(crow, 19).value or '').strip() if crow else '%'
+                ws.cell(r, 5).value = f"Achieved ({out}{'%' if unit in ('%', '') else ''})"
             ws.cell(r, 6).value = row['issues'] or None
             for c in range(1, 7):
                 ws.cell(r, c).alignment = Alignment(wrap_text=True, vertical='center', horizontal='center')
