@@ -552,6 +552,16 @@ def fill(data, out_path, signature=None, supervisor_signature=None, cso_signatur
         v = (cc.get(k) or '').strip()
         if v:
             pms[a] = v
+    if data.get('drop_closed_sheets'):
+        # per-record option: leave out the two closed contract sheets so the workbook opens on her own contract
+        for name in [n for n in wb.sheetnames if 'CLOSED' in n.upper()]:
+            wb.remove(wb[name])
+        opened = next((ws for ws in wb.worksheets if ws.title.upper().startswith('PMS CONTRACT')), None)
+        for ws in wb.worksheets:
+            ws.sheet_view.tabSelected = False
+        if opened is not None:
+            wb.active = wb.worksheets.index(opened)
+            opened.sheet_view.tabSelected = True
     order_sheets(wb)
     stage = out_path + '.stage.xlsx'
     wb.save(stage)
