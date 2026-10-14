@@ -385,6 +385,7 @@ def fill(data, out_path, signature=None, supervisor_signature=None, cso_signatur
         if 'MONTHLY' in name:
             month_sheets[MONTH_ABBR.index(name[:3])] = name
     sup_name = upper(' '.join(x for x in [sup.get('surname'), sup.get('first_name'), sup.get('other_name')] if x))
+    blank_m = set()       # months left blank (no figures) under the blank_empty_periods option
     for mi in range(12):
         ws = wb[month_sheets[mi]]
         for col, w in MONTH_WIDTHS.items():
@@ -424,6 +425,9 @@ def fill(data, out_path, signature=None, supervisor_signature=None, cso_signatur
                 ws.cell(r, c).alignment = Alignment(wrap_text=True, vertical='center', horizontal='center')
         if not filled_any:
             notes.append(f"{MONTH_ABBR[mi].title()}: no figures submitted")
+            if data.get('blank_empty_periods'):
+                blank_m.add(mi)           # nothing written for this month: no extras, comments or signatures
+                continue
         es = [e for e in month_entries[mi] if e.value is not None]
         if es:
             appraisee_c, appraiser_c = review.monthly_comments(es, [r['issues'] for r in month_rows[mi]], mi, emp.get('first_name'))
@@ -452,6 +456,7 @@ def fill(data, out_path, signature=None, supervisor_signature=None, cso_signatur
     periods = [('01/01', '31/03'), ('01/04', '30/06'), ('01/07', '30/09'), ('01/10', '31/12')]
     reset = {month_sheets[mi]: tuple(range(12, 12 + max(6, len(month_rows[mi])))) + (24, 27, 30, 34, 37, 39, 40) for mi in range(12)}
     qoff = {}
+    blank_q = set()       # quarters left blank (no figures) under the blank_empty_periods option
     for qi, name in enumerate(q_sheets):
         ws = wb[name]
         ws['D5'] = f"{periods[qi][0]}/{year} TO {periods[qi][1]}/{year}"
@@ -505,7 +510,8 @@ def fill(data, out_path, signature=None, supervisor_signature=None, cso_signatur
         for mi in range(qi * 3, qi * 3 + 3):
             for e in month_entries[mi]:
                 by_key.setdefault((e.row['code'], norm(e.row['kra'])), []).append(e)
-        review.fill_quarter(ws, qi, ks, by_key, contract, pms, data, year, off)
+        if not review.fill_quarter(ws, qi, ks, by_key, contract, pms, data, year, off) and data.get('blank_empty_periods'):
+            blank_q.add(name)
         reset[name] = (5, 7, 8, 10, 11, 13, 14) + tuple(range(19, 25 + off)) + tuple(r + off for r in list(range(30, 45)) + [52, 54, 55, 56, 57, 58])
 
     # signatures (only those supplied and approved): appraisee, supervisor/appraiser, counter-signing officer
@@ -529,19 +535,24 @@ def fill(data, out_path, signature=None, supervisor_signature=None, cso_signatur
         if signature:
             place_signature_fit(pms, signature, 'C124:G126', max_h=big)
             for mi in range(12):
-                place_signature_fit(wb[month_sheets[mi]], signature, 'B42:C42', max_h=big)
+                if mi not in blank_m:
+                    place_signature_fit(wb[month_sheets[mi]], signature, 'B42:C42', max_h=big)
             for name in q_sheets:
-                place_signature_fit(wb[name], signature, f'C{59 + qoff[name]}:D{61 + qoff[name]}', max_h=big)
+                if name not in blank_q:
+                    place_signature_fit(wb[name], signature, f'C{59 + qoff[name]}:D{61 + qoff[name]}', max_h=big)
         if supervisor_signature:
             place_signature_fit(pms, supervisor_signature, 'I124:M126', max_h=big)
             for mi in range(12):
-                place_signature_fit(wb[month_sheets[mi]], supervisor_signature, 'E42:F42', max_h=big)
+                if mi not in blank_m:
+                    place_signature_fit(wb[month_sheets[mi]], supervisor_signature, 'E42:F42', max_h=big)
             for name in q_sheets:
-                place_signature_fit(wb[name], supervisor_signature, f'F{59 + qoff[name]}:F{61 + qoff[name]}', max_h=big)
+                if name not in blank_q:
+                    place_signature_fit(wb[name], supervisor_signature, f'F{59 + qoff[name]}:F{61 + qoff[name]}', max_h=big)
         if cso_signature:
             place_signature_fit(pms, cso_signature, 'P124:T126', max_h=big)
             for name in q_sheets:
-                place_signature_fit(wb[name], cso_signature, f'H{59 + qoff[name]}:J{61 + qoff[name]}', max_h=big)
+                if name not in blank_q:
+                    place_signature_fit(wb[name], cso_signature, f'H{59 + qoff[name]}:J{61 + qoff[name]}', max_h=big)
 
     if n_custom:
         pms.delete_rows(CUSTOM_ROW0, 60)                   # scratch rows are not part of the workbook

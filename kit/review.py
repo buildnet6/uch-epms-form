@@ -204,8 +204,21 @@ def fill_quarter(ws, qi, ks, entries_by_key, contract, pms, data, year, off=0):
         ws.cell(r, 18).value = f'=IF(Q{r}="","",F{r}*Q{r}/100)' if marks is not None else None   # R weighted raw
         for c in (16, 17, 18):
             ws.cell(r, c).alignment = Alignment(horizontal='center', vertical='center')
+    if not q_entries and data.get('blank_empty_periods'):
+        # per-record option (e.g. a nurse who resumed late in the year): a quarter with no figures stays blank,
+        # with only the printed competency descriptions, so nothing is scored, commented on or dated for it
+        for qr, cr in list({R(30): 104, R(31): 105, R(32): 106, R(34): 108, R(35): 109, R(36): 110, R(38): 112,
+                            R(39): 113, R(40): 114, R(42): 116, R(43): 117, R(44): 118}.items()):
+            ws.cell(qr, 3).value = ' '.join(str(pms.cell(cr, 6).value or '').split()) or None
+            ws.cell(qr, 3).alignment = WRAP
+            ws.cell(qr, 9).value = None
+        ws[f'E{R(55)}'] = "Supervisor's Comment"               # the template carries sample wording here
+        ws[f'G{R(55)}'] = "Counter Supervisor's Comment"
+        for a in (f'E{R(55)}', f'G{R(55)}'):
+            ws[a].alignment = Alignment(wrap_text=True, vertical='top', horizontal='left')
+        return q_entries
     # performance level for the quarter (share of available marks)
-    marks_list = [BAND_MARKS[BAND_NAMES.index(e.rating)] for e in q_entries if e.rating in BAND_NAMES]
+    marks_list =[BAND_MARKS[BAND_NAMES.index(e.rating)] for e in q_entries if e.rating in BAND_NAMES]
     level = (sum(marks_list) / len(marks_list)) if marks_list else 80
 
     # Section 5 competencies (20 marks) and Section 6 operations (10 marks)
